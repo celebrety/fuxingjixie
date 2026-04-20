@@ -5472,7 +5472,10 @@ function submitMessage(e) {
     const company = document.getElementById('msgCompany').value.trim();
     const content = document.getElementById('msgContent').value.trim();
 
-    if (!name || !phone || !content) return;
+    if (!name || !phone || !content) {
+        alert('请填写必填项：姓名、电话和内容');
+        return;
+    }
 
     const now = new Date();
     const date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
@@ -5491,13 +5494,16 @@ function submitMessage(e) {
     // 保存到 localStorage 供管理后台读取
     try {
         var _msgs = JSON.parse(localStorage.getItem('fx_messages') || '[]');
+        const emailEl = document.getElementById('msgEmail');
+        const typeEl = document.getElementById('msgType');
+        
         _msgs.unshift({
             id: Date.now(),
             name: name,
             phone: phone,
-            email: document.getElementById('msgEmail') ? document.getElementById('msgEmail').value.trim() : '',
+            email: emailEl ? emailEl.value.trim() : '',
             company: company,
-            type: document.getElementById('msgType') ? document.getElementById('msgType').value : '',
+            type: typeEl ? typeEl.value : '',
             content: content,
             date: date,
             stars: 5,
@@ -5505,7 +5511,10 @@ function submitMessage(e) {
             source: 'web'
         });
         localStorage.setItem('fx_messages', JSON.stringify(_msgs));
-    } catch(e) {}
+        console.log('Message saved to localStorage successfully');
+    } catch(e) {
+        console.error('Failed to save message to localStorage:', e);
+    }
 
     // 显示成功提示
     const toast = document.getElementById('successToast');
@@ -5575,6 +5584,17 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// ===== 暴露全局函数供 onclick/onsubmit 调用（兼容 Safari 块级函数作用域）=====
+window.switchLang      = switchLang;
+window.toggleMenu      = toggleMenu;
+window.filterEquipment = filterEquipment;
+window.openEquipModal  = openEquipModal;
+window.openProductModal= openProductModal;
+window.closeModal      = closeModal;
+window.closeModalBtn   = closeModalBtn;
+window.submitMessage   = submitMessage;
+window.scrollToTop     = scrollToTop;
 
 /* ---------- Web 版脚本 结束 ---------- */
 }
@@ -5873,6 +5893,8 @@ function closeDrawer() {
 //  底部Tab点击
 // ============================================================
 function tabClick(el, section) {
+    event.preventDefault();
+    event.stopPropagation();
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
     el.classList.add('active');
     smoothTo(section);
@@ -6137,7 +6159,10 @@ function submitMsg(e) {
     const name = document.getElementById('fName').value.trim();
     const phone = document.getElementById('fPhone').value.trim();
     const content = document.getElementById('fContent').value.trim();
-    if (!name || !phone || !content) return;
+    if (!name || !phone || !content) {
+        alert('请填写必填项：姓名、电话和内容');
+        return;
+    }
     const company = document.getElementById('fCompany').value.trim();
     const now = new Date();
     const date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
@@ -6151,13 +6176,14 @@ function submitMsg(e) {
     // 保存到 localStorage 供管理后台读取
     try {
         var _msgs = JSON.parse(localStorage.getItem('fx_messages') || '[]');
+        const typeEl = document.getElementById('fType');
         _msgs.unshift({
             id: Date.now(),
             name: name,
             phone: phone,
             email: '',
             company: company,
-            type: document.getElementById('fType') ? document.getElementById('fType').value : '',
+            type: typeEl ? typeEl.value : '',
             content: content,
             date: date,
             stars: 5,
@@ -6165,7 +6191,10 @@ function submitMsg(e) {
             source: 'h5'
         });
         localStorage.setItem('fx_messages', JSON.stringify(_msgs));
-    } catch(e) {}
+        console.log('H5 Message saved to localStorage successfully');
+    } catch(e) {
+        console.error('Failed to save H5 message to localStorage:', e);
+    }
     renderReviews();
     // 显示成功提示
     const tip = document.getElementById('successTip');
@@ -6203,6 +6232,18 @@ document.addEventListener('touchend', e => {
     lastTap = now;
 }, { passive: false });
 
+// ===== 暴露全局函数供 onclick/onsubmit 调用（兼容 Safari 块级函数作用域）=====
+window.switchLang       = switchLang;
+window.toggleDrawer     = toggleDrawer;
+window.closeDrawer      = closeDrawer;
+window.tabClick         = tabClick;
+window.smoothTo         = smoothTo;
+window.openModal        = openModal;
+window.closeModal       = closeModal;
+window.handleModalClick = handleModalClick;
+window.showToast        = showToast;
+window.submitMsg        = submitMsg;
+
 /* ---------- H5 版脚本 结束 ---------- */
 }
 </script>
@@ -6229,25 +6270,51 @@ document.addEventListener('touchend', e => {
 })();
 </script>
 
-</body>
-</html>
-<!-- ═══ 管理后台桥接：加载自定义图片 ═══ -->
+<!-- ═══ 管理后台桥接：加载自定义图片（须放在 </body> 前保证 DOM 已就绪）═══ -->
 <script>
 (function() {
-    try {
-        var imgs = JSON.parse(localStorage.getItem('fx_images') || '{}');
-        Object.keys(imgs).forEach(function(id) {
-            var el = document.getElementById('fx-img-' + id);
-            if (el && imgs[id]) {
-                el.style.backgroundImage = 'url("' + imgs[id] + '")';
-                el.style.backgroundSize = 'cover';
-                el.style.backgroundPosition = 'center';
-                var emoji = el.querySelector('.equipment-emoji, .product-emoji');
-                if (emoji) emoji.style.display = 'none';
-                var span = el.querySelector('span[style*="font-size:90px"]');
-                if (span) span.style.display = 'none';
-            }
-        });
-    } catch(e) {}
+    'use strict';
+    function applyCustomImages() {
+        try {
+            var imgs = JSON.parse(localStorage.getItem('fx_images') || '{}');
+            if (!imgs || Object.keys(imgs).length === 0) return;
+            
+            Object.keys(imgs).forEach(function(id) {
+                if (!imgs[id]) return;
+                var el = document.getElementById('fx-img-' + id);
+                if (el) {
+                    el.style.backgroundImage = 'url("' + imgs[id] + '")';
+                    el.style.backgroundSize = 'cover';
+                    el.style.backgroundPosition = 'center';
+                    el.style.backgroundRepeat = 'no-repeat';
+                    
+                    // 隐藏默认emoji和占位符
+                    var emoji = el.querySelector('.equipment-emoji, .product-emoji');
+                    if (emoji) emoji.style.display = 'none';
+                    var span = el.querySelector('span[style*="font-size:90px"]');
+                    if (span) span.style.display = 'none';
+                }
+            });
+        } catch(e) {
+            console.warn('Failed to load custom images:', e);
+        }
+    }
+    
+    // DOM加载完成后执行
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', applyCustomImages);
+    } else {
+        // DOM已就绪，延迟一点执行确保所有元素已渲染
+        setTimeout(applyCustomImages, 100);
+    }
+    
+    // 监听localStorage变化（用于同浏览器不同标签页同步）
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'fx_images') {
+            setTimeout(applyCustomImages, 50);
+        }
+    });
 })();
 </script>
+</body>
+</html>
