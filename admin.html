@@ -330,6 +330,22 @@ const DEFAULT_PWD = 'fuxing@2024';
 let currentFilter = 'all';
 let currentImgSlot = null;
 
+// ============================================================
+//  云端数据服务配置（与 index.html 保持一致）
+// ============================================================
+const CLOUD_CONFIG = {
+    // JSONBin.io 云端数据服务配置
+    API_KEY: '$2a$10$hkJ46s.iu9JG/vLvoY1rSuae.MdIbokPR930292VONU37AivGtrM6',
+    MESSAGES_BIN_ID: '69e65c4faaba8821971c6129',
+    IMAGES_BIN_ID: '69e65cc9856a6821895432d6'
+};
+
+// 检查云端服务是否已配置
+function isCloudConfigured() {
+    return CLOUD_CONFIG.API_KEY !== 'YOUR_JSONBIN_API_KEY' &&
+           CLOUD_CONFIG.MESSAGES_BIN_ID !== 'YOUR_MESSAGES_BIN_ID';
+}
+
 function toast(msg, color='#333') {
   const el = document.getElementById('toast');
   el.textContent = msg; el.style.background = color;
@@ -338,10 +354,130 @@ function toast(msg, color='#333') {
 }
 function closeModal(id){ document.getElementById(id).classList.remove('show') }
 function openModal(id){ document.getElementById(id).classList.add('show') }
-function getMsgs(){ try{return JSON.parse(localStorage.getItem(KEYS.msgs)||'[]')}catch{return[]} }
-function saveMsgs(arr){ localStorage.setItem(KEYS.msgs, JSON.stringify(arr)) }
-function getImgs(){ try{return JSON.parse(localStorage.getItem(KEYS.imgs)||'{}')}catch{return{}} }
-function saveImgs(obj){ localStorage.setItem(KEYS.imgs, JSON.stringify(obj)) }
+
+// 从云端获取留言数据
+async function getMsgs(){
+    if (!isCloudConfigured()) {
+        console.warn('云端服务未配置，使用本地数据');
+        try{return JSON.parse(localStorage.getItem(KEYS.msgs)||'[]')}catch{return[]}
+    }
+    
+    try {
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${CLOUD_CONFIG.MESSAGES_BIN_ID}/latest`, {
+            method: 'GET',
+            headers: {
+                'X-Master-Key': CLOUD_CONFIG.API_KEY
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.record.messages || [];
+    } catch (error) {
+        console.error('获取云端留言失败:', error);
+        toast('数据加载失败，使用本地缓存', '#ef4444');
+        // 降级到本地
+        try{return JSON.parse(localStorage.getItem(KEYS.msgs)||'[]')}catch{return[]}
+    }
+}
+
+// 保存留言数据到云端
+async function saveMsgs(arr){
+    if (!isCloudConfigured()) {
+        console.warn('云端服务未配置，仅保存到本地');
+        localStorage.setItem(KEYS.msgs, JSON.stringify(arr));
+        return;
+    }
+    
+    try {
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${CLOUD_CONFIG.MESSAGES_BIN_ID}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': CLOUD_CONFIG.API_KEY
+            },
+            body: JSON.stringify({ messages: arr })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        console.log('留言数据已保存到云端');
+        // 同时保存到本地作为缓存
+        localStorage.setItem(KEYS.msgs, JSON.stringify(arr));
+    } catch (error) {
+        console.error('保存留言到云端失败:', error);
+        toast('保存失败', '#ef4444');
+        // 降级到本地
+        localStorage.setItem(KEYS.msgs, JSON.stringify(arr));
+    }
+}
+
+// 从云端获取图片配置
+async function getImgs(){
+    if (!isCloudConfigured()) {
+        console.warn('云端服务未配置，使用本地图片');
+        try{return JSON.parse(localStorage.getItem(KEYS.imgs)||'{}')}catch{return{}}
+    }
+    
+    try {
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${CLOUD_CONFIG.IMAGES_BIN_ID}/latest`, {
+            method: 'GET',
+            headers: {
+                'X-Master-Key': CLOUD_CONFIG.API_KEY
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.record.images || {};
+    } catch (error) {
+        console.error('获取云端图片配置失败:', error);
+        // 降级到本地
+        try{return JSON.parse(localStorage.getItem(KEYS.imgs)||'{}')}catch{return{}}
+    }
+}
+
+// 保存图片配置到云端
+async function saveImgs(obj){
+    if (!isCloudConfigured()) {
+        console.warn('云端服务未配置，仅保存到本地');
+        localStorage.setItem(KEYS.imgs, JSON.stringify(obj));
+        return;
+    }
+    
+    try {
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${CLOUD_CONFIG.IMAGES_BIN_ID}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': CLOUD_CONFIG.API_KEY
+            },
+            body: JSON.stringify({ images: obj })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        console.log('图片配置已保存到云端');
+        // 同时保存到本地作为缓存
+        localStorage.setItem(KEYS.imgs, JSON.stringify(obj));
+    } catch (error) {
+        console.error('保存图片配置到云端失败:', error);
+        toast('保存失败', '#ef4444');
+        // 降级到本地
+        localStorage.setItem(KEYS.imgs, JSON.stringify(obj));
+    }
+}
+
 const TYPE_MAP = {quote:'产品询价',tech:'技术咨询',coop:'合作洽谈',other:'其他事项','':`-`};
 
 // ════════════════════════════════════════════
@@ -408,8 +544,8 @@ function showTab(name){
 // ════════════════════════════════════════════
 //  数据概览
 // ════════════════════════════════════════════
-function renderDashboard(){
-  const msgs = getMsgs();
+async function renderDashboard(){
+  const msgs = await getMsgs();
   const total = msgs.length;
   const newCount = msgs.filter(m=>m.status==='new').length;
   const handled = msgs.filter(m=>m.status==='handled').length;
@@ -448,9 +584,10 @@ function setFilter(f, btn){
   renderMsgTable();
 }
 
-function renderMsgTable(){
+async function renderMsgTable(){
   const keyword = (document.getElementById('searchInput')?.value||'').toLowerCase();
-  let msgs = getMsgs().sort((a,b)=>b.id-a.id);
+  let msgs = await getMsgs();
+  msgs.sort((a,b)=>b.id-a.id);
 
   if(currentFilter==='new') msgs=msgs.filter(m=>m.status==='new');
   else if(currentFilter==='handled') msgs=msgs.filter(m=>m.status==='handled');
@@ -486,8 +623,9 @@ function renderMsgTable(){
     </tr>`).join('');
 }
 
-function viewMsg(id){
-  const m = getMsgs().find(x=>x.id===id);
+async function viewMsg(id){
+  const allMsgs = await getMsgs();
+  const m = allMsgs.find(x=>x.id===id);
   if(!m) return;
   document.getElementById('detailContent').innerHTML=`
     <div class="detail-grid">
@@ -498,7 +636,7 @@ function viewMsg(id){
       <div class="detail-item"><label>咨询类型</label><div class="val">${TYPE_MAP[m.type]||m.type||'-'}</div></div>
       <div class="detail-item"><label>提交时间</label><div class="val">${m.date||'-'}</div></div>
       <div class="detail-item"><label>来源</label><div class="val">${m.source==='h5'?'移动端H5':'桌面Web'}</div></div>
-      <div class="detail-item"><label>状态</label><div class="val">${m.status==='new'?'⏳ 未处理':'✅ 已处理'}</div></div>
+      <div class="detail-item"><label>状态</label><div class="val">${m.status==='new'?'⌛ 未处理':'✅ 已处理'}</div></div>
       <div class="detail-item detail-content"><label>留言内容</label><div class="val">${esc(m.content)}</div></div>
     </div>
     <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end">
@@ -509,28 +647,39 @@ function viewMsg(id){
   openModal('detailModal');
 }
 
-function markHandled(id){
-  const msgs = getMsgs();
+async function markHandled(id){
+  const msgs = await getMsgs();
   const m = msgs.find(x=>x.id===id);
-  if(m){ m.status='handled'; saveMsgs(msgs); renderMsgTable(); renderDashboard(); toast('已标记为处理完毕','#22c55e') }
+  if(m){ 
+    m.status='handled'; 
+    await saveMsgs(msgs); 
+    renderMsgTable(); 
+    renderDashboard(); 
+    toast('已标记为处理完毕','#22c55e'); 
+  }
 }
 
-function delMsg(id){
+async function delMsg(id){
   if(!confirm('确定删除该留言？')) return;
-  saveMsgs(getMsgs().filter(x=>x.id!==id));
-  renderMsgTable(); renderDashboard();
+  const msgs = await getMsgs();
+  await saveMsgs(msgs.filter(x=>x.id!==id));
+  renderMsgTable(); 
+  renderDashboard();
   toast('留言已删除','#ef4444');
 }
 
-function clearHandled(){
-  if(!confirm('确定清除所有"已处理"的留言？')) return;
-  saveMsgs(getMsgs().filter(m=>m.status!=='handled'));
-  renderMsgTable(); renderDashboard();
+async function clearHandled(){
+  if(!confirm('确定清除所有“已处理”的留言？')) return;
+  const msgs = await getMsgs();
+  await saveMsgs(msgs.filter(m=>m.status!=='handled'));
+  renderMsgTable(); 
+  renderDashboard();
   toast('已清除处理完毕的留言');
 }
 
-function exportCSV(){
-  const msgs = getMsgs().sort((a,b)=>b.id-a.id);
+async function exportCSV(){
+  const msgs = await getMsgs();
+  msgs.sort((a,b)=>b.id-a.id);
   if(!msgs.length){ toast('暂无数据可导出'); return }
   const headers = ['日期','姓名','电话','公司','邮箱','咨询类型','留言内容','来源','状态'];
   const rows = msgs.map(m=>[
@@ -568,8 +717,8 @@ const IMG_SLOTS = [
   {id:'prod-7', name:'连接器支架', desc:'产品展示第7项', emoji:'🛠️'},
 ];
 
-function renderImgGrid(){
-  const imgs = getImgs();
+async function renderImgGrid(){
+  const imgs = await getImgs();
   document.getElementById('imgGrid').innerHTML = IMG_SLOTS.map(slot=>{
     const src = imgs[slot.id];
     return `
@@ -612,9 +761,10 @@ function handleFileUpload(e){
   e.target.value='';
 }
 
-function openUrlInput(slotId){
+async function openUrlInput(slotId){
   currentImgSlot = slotId;
-  document.getElementById('urlInput').value = getImgs()[slotId]||'';
+  const imgs = await getImgs();
+  document.getElementById('urlInput').value = imgs[slotId]||'';
   openModal('urlModal');
 }
 
@@ -626,18 +776,18 @@ function saveUrl(){
   toast('图片链接已保存','#22c55e');
 }
 
-function applyImg(slotId, src){
-  const imgs = getImgs();
+async function applyImg(slotId, src){
+  const imgs = await getImgs();
   imgs[slotId] = src;
-  saveImgs(imgs);
+  await saveImgs(imgs);
   renderImgGrid();
 }
 
-function resetImg(slotId){
+async function resetImg(slotId){
   if(!confirm('确定还原为默认占位图？')) return;
-  const imgs = getImgs();
+  const imgs = await getImgs();
   delete imgs[slotId];
-  saveImgs(imgs);
+  await saveImgs(imgs);
   renderImgGrid();
   toast('已还原默认图片');
 }
@@ -645,10 +795,11 @@ function resetImg(slotId){
 // ════════════════════════════════════════════
 //  初始化
 // ════════════════════════════════════════════
-function initAdmin(){
-  renderDashboard();
+async function initAdmin(){
+  await renderDashboard();
   // 更新导航红点
-  const newCount = getMsgs().filter(m=>m.status==='new').length;
+  const msgs = await getMsgs();
+  const newCount = msgs.filter(m=>m.status==='new').length;
   const badge = document.getElementById('newBadge');
   if(newCount){ badge.textContent=newCount+'条未处理'; badge.style.display='' }
 }
