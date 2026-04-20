@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>复兴机械厂 · 管理后台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --primary:#1a3a5c;--secondary:#c8860a;--accent:#e8f4fd;
+  --dark:#0d1f2d;--green:#22c55e;--red:#ef4444;--orange:#f59e0b;
+  --gray:#6c757d;--border:#dee2e6;--bg:#f0f2f5;--white:#fff;
+  --shadow:0 2px 12px rgba(0,0,0,.08);--radius:10px;
+}
+body{font-family:'Microsoft YaHei','PingFang SC',Arial,sans-serif;background:var(--bg);color:#333;min-height:100vh}
+
+/* ── Login ── */
+#loginWrap{display:flex;align-items:center;justify-content:center;min-height:100vh;
+  background:linear-gradient(135deg,var(--primary) 0%,#2d6a9f 100%)}
+.login-box{background:var(--white);border-radius:20px;padding:48px 40px;width:380px;
+  box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center}
+.login-logo{font-size:56px;margin-bottom:16px}
+.login-box h2{font-size:20px;color:var(--primary);margin-bottom:6px}
+.login-box p{font-size:13px;color:var(--gray);margin-bottom:32px}
+.inp{width:100%;padding:12px 16px;border:2px solid var(--border);border-radius:8px;
+  font-size:14px;font-family:inherit;outline:none;transition:.2s;margin-bottom:12px}
+.inp:focus{border-color:var(--primary)}
+.btn-login{width:100%;padding:13px;background:var(--primary);color:#fff;border:none;
+  border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;transition:.2s}
+.btn-login:hover{background:#254e7a}
+.login-err{color:var(--red);font-size:13px;margin-top:8px;min-height:20px}
+.login-tip{font-size:12px;color:#aaa;margin-top:16px}
+
+/* ── Layout ── */
+#adminWrap{display:none;min-height:100vh}
+.layout{display:flex;min-height:100vh}
+
+/* ── Sidebar ── */
+.sidebar{width:220px;background:var(--dark);color:#fff;flex-shrink:0;display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;height:100vh;z-index:100}
+.sb-logo{padding:24px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sb-logo .name{font-size:15px;font-weight:700;color:#fff;margin-bottom:2px}
+.sb-logo .sub{font-size:11px;color:rgba(255,255,255,.4);letter-spacing:1px}
+.sb-nav{flex:1;padding:16px 0}
+.sb-nav a{display:flex;align-items:center;gap:10px;padding:12px 20px;color:rgba(255,255,255,.65);
+  cursor:pointer;font-size:14px;transition:.2s;text-decoration:none}
+.sb-nav a:hover{color:#fff;background:rgba(255,255,255,.05)}
+.sb-nav a.active{color:#fff;background:rgba(200,134,10,.2);border-right:3px solid var(--secondary)}
+.sb-nav .icon{font-size:18px;width:22px;text-align:center}
+.sb-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:rgba(255,255,255,.3)}
+
+/* ── Main ── */
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{height:56px;background:var(--white);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 28px;
+  box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.topbar-title{font-size:18px;font-weight:700;color:var(--primary)}
+.topbar-right{display:flex;align-items:center;gap:16px}
+.badge-new{background:var(--red);color:#fff;font-size:11px;padding:2px 7px;border-radius:10px}
+.btn-logout{background:none;border:1px solid var(--border);color:var(--gray);padding:6px 14px;
+  border-radius:6px;cursor:pointer;font-size:13px;transition:.2s}
+.btn-logout:hover{border-color:var(--red);color:var(--red)}
+.content{padding:28px;flex:1}
+
+/* ── Stats ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.stat-card{background:var(--white);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow)}
+.stat-card .num{font-size:32px;font-weight:800;line-height:1}
+.stat-card .label{font-size:13px;color:var(--gray);margin-top:6px}
+.stat-blue .num{color:var(--primary)}.stat-red .num{color:var(--red)}
+.stat-green .num{color:var(--green)}.stat-orange .num{color:var(--secondary)}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.search-box{flex:1;min-width:200px;max-width:320px;position:relative}
+.search-box input{width:100%;padding:9px 14px 9px 36px;border:1.5px solid var(--border);
+  border-radius:8px;font-size:13px;outline:none;font-family:inherit;transition:.2s}
+.search-box input:focus{border-color:var(--primary)}
+.search-box::before{content:'🔍';position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:13px}
+.filter-btns{display:flex;gap:6px}
+.filter-btn{padding:8px 16px;border:1.5px solid var(--border);border-radius:20px;background:var(--white);
+  cursor:pointer;font-size:13px;font-family:inherit;transition:.2s}
+.filter-btn.active,.filter-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-action{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-family:inherit;transition:.2s}
+.btn-export{background:var(--green);color:#fff}.btn-export:hover{background:#16a34a}
+.btn-clear{background:var(--red);color:#fff}.btn-clear:hover{background:#dc2626}
+
+/* ── Table ── */
+.table-wrap{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{background:#f8f9fa;padding:12px 14px;text-align:left;font-weight:600;
+  color:var(--gray);border-bottom:1px solid var(--border);white-space:nowrap}
+.tbl td{padding:12px 14px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#fafbfc}
+.msg-text{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#555}
+.tag{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.tag-new{background:#fef3c7;color:#92400e}
+.tag-handled{background:#d1fae5;color:#065f46}
+.tag-web{background:#dbeafe;color:#1e40af}
+.tag-h5{background:#e0e7ff;color:#3730a3}
+.tbl-actions{display:flex;gap:6px;white-space:nowrap}
+.tbl-btn{padding:5px 10px;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-family:inherit;transition:.2s}
+.btn-view{background:#e0e7ff;color:#3730a3}.btn-view:hover{background:#c7d2fe}
+.btn-done{background:#d1fae5;color:#065f46}.btn-done:hover{background:#a7f3d0}
+.btn-del{background:#fee2e2;color:#991b1b}.btn-del:hover{background:#fecaca}
+.empty-msg{text-align:center;padding:60px;color:var(--gray);font-size:14px}
+
+/* ── Modal ── */
+.modal-mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;
+  align-items:center;justify-content:center}
+.modal-mask.show{display:flex}
+.modal{background:var(--white);border-radius:16px;padding:32px;width:540px;max-width:94vw;
+  max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal h3{font-size:18px;color:var(--primary);margin-bottom:20px}
+.modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray);margin-top:-4px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.detail-item label{font-size:11px;color:var(--gray);text-transform:uppercase;letter-spacing:.5px}
+.detail-item .val{font-size:14px;color:#333;margin-top:3px;font-weight:500}
+.detail-content{grid-column:1/-1;margin-top:8px}
+.detail-content label{font-size:11px;color:var(--gray)}
+.detail-content .val{background:#f8f9fa;padding:12px;border-radius:8px;line-height:1.7;margin-top:4px;font-size:14px}
+
+/* ── Images Tab ── */
+.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
+.img-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.img-preview{height:160px;display:flex;align-items:center;justify-content:center;
+  font-size:48px;background:linear-gradient(135deg,var(--primary),#2d6a9f);position:relative;overflow:hidden}
+.img-preview img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.img-preview .has-img-overlay{position:absolute;inset:0;background:rgba(0,0,0,.3);
+  display:flex;align-items:center;justify-content:center;opacity:0;transition:.2s}
+.img-card:hover .has-img-overlay{opacity:1}
+.img-card-body{padding:16px}
+.img-card-name{font-size:14px;font-weight:600;color:var(--primary);margin-bottom:4px}
+.img-card-desc{font-size:12px;color:var(--gray);margin-bottom:14px}
+.img-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn-upload-img{padding:7px 14px;background:var(--primary);color:#fff;border:none;border-radius:6px;
+  cursor:pointer;font-size:12px;font-family:inherit;transition:.2s}
+.btn-upload-img:hover{background:#254e7a}
+.btn-url-img{padding:7px 14px;background:var(--accent);color:var(--primary);border:1px solid var(--border);
+  border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit;transition:.2s}
+.btn-url-img:hover{background:#d0e8f8}
+.btn-reset-img{padding:7px 12px;background:#f8f9fa;color:var(--red);border:1px solid #fee2e2;
+  border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit;transition:.2s}
+.btn-reset-img:hover{background:#fee2e2}
+.img-status{font-size:11px;margin-top:8px;padding:4px 10px;border-radius:6px;display:inline-block}
+.img-status.has-img{background:#d1fae5;color:#065f46}
+.img-status.no-img{background:#f1f5f9;color:#94a3b8}
+
+/* URL modal */
+.url-modal{background:var(--white);border-radius:16px;padding:28px;width:460px;max-width:94vw}
+.url-modal h3{font-size:16px;color:var(--primary);margin-bottom:16px}
+.url-modal input{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;
+  font-size:13px;font-family:inherit;outline:none;margin-bottom:14px}
+.url-modal input:focus{border-color:var(--primary)}
+.url-modal-btns{display:flex;gap:10px;justify-content:flex-end}
+
+/* ── Password Change ── */
+.settings-card{background:var(--white);border-radius:var(--radius);padding:28px;
+  max-width:420px;box-shadow:var(--shadow)}
+.settings-card h3{font-size:16px;color:var(--primary);margin-bottom:20px}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:30px;right:30px;background:#333;color:#fff;padding:12px 22px;
+  border-radius:8px;font-size:13px;opacity:0;transform:translateY(10px);transition:.3s;z-index:999;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* ── Responsive ── */
+@media(max-width:900px){
+  .sidebar{width:60px}.sb-logo .name,.sb-logo .sub,.sb-nav a span{display:none}
+  .sb-nav a{justify-content:center;padding:14px}.main{margin-left:60px}
+  .stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){
+  .stats{grid-template-columns:1fr 1fr}.content{padding:16px}
+  .tbl th:nth-child(3),.tbl td:nth-child(3),
+  .tbl th:nth-child(4),.tbl td:nth-child(4){display:none}}
+</style>
+</head>
+<body>
+
+<!-- ════ 登录 ════ -->
+<div id="loginWrap">
+  <div class="login-box">
+    <div class="login-logo">⚙️</div>
+    <h2>复兴机械厂</h2>
+    <p>管理后台系统</p>
+    <input class="inp" type="password" id="pwdInput" placeholder="请输入管理密码" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn-login" onclick="doLogin()">登 录</button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-tip">默认密码：fuxing@2024</div>
+  </div>
+</div>
+
+<!-- ════ 管理面板 ════ -->
+<div id="adminWrap">
+  <div class="layout">
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+      <div class="sb-logo">
+        <div class="name">复兴机械厂</div>
+        <div class="sub">ADMIN PANEL</div>
+      </div>
+      <nav class="sb-nav">
+        <a class="active" onclick="showTab('dashboard')" id="nav-dashboard">
+          <span class="icon">📊</span><span>数据概览</span>
+        </a>
+        <a onclick="showTab('messages')" id="nav-messages">
+          <span class="icon">📨</span><span>留言管理</span>
+        </a>
+        <a onclick="showTab('images')" id="nav-images">
+          <span class="icon">🖼️</span><span>图片管理</span>
+        </a>
+        <a onclick="showTab('settings')" id="nav-settings">
+          <span class="icon">⚙️</span><span>系统设置</span>
+        </a>
+      </nav>
+      <div class="sb-footer">v1.0.0</div>
+    </aside>
+
+    <!-- 主内容 -->
+    <div class="main">
+      <div class="topbar">
+        <div class="topbar-title" id="topbarTitle">数据概览</div>
+        <div class="topbar-right">
+          <span id="newBadge" class="badge-new" style="display:none"></span>
+          <button class="btn-logout" onclick="logout()">退出登录</button>
+        </div>
+      </div>
+      <div class="content">
+
+        <!-- ── 数据概览 ── -->
+        <div id="tab-dashboard">
+          <div class="stats" id="statsCards"></div>
+          <div class="table-wrap">
+            <div style="padding:18px 20px;border-bottom:1px solid var(--border);font-weight:600;color:var(--primary)">
+              最新留言（前5条）
+            </div>
+            <table class="tbl" id="recentTbl">
+              <thead><tr><th>日期</th><th>姓名</th><th>电话</th><th>内容摘要</th><th>状态</th></tr></thead>
+              <tbody id="recentBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── 留言管理 ── -->
+        <div id="tab-messages" style="display:none">
+          <div class="toolbar">
+            <div class="search-box">
+              <input type="text" id="searchInput" placeholder="搜索姓名/电话/内容..." oninput="renderMsgTable()">
+            </div>
+            <div class="filter-btns">
+              <button class="filter-btn active" onclick="setFilter('all',this)">全部</button>
+              <button class="filter-btn" onclick="setFilter('new',this)">未处理</button>
+              <button class="filter-btn" onclick="setFilter('handled',this)">已处理</button>
+            </div>
+            <button class="btn-action btn-export" onclick="exportCSV()">📥 导出CSV</button>
+            <button class="btn-action btn-clear" onclick="clearHandled()">🗑️ 清除已处理</button>
+          </div>
+          <div class="table-wrap">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>日期</th><th>姓名</th><th>电话</th><th>公司</th>
+                  <th>类型</th><th>内容摘要</th><th>来源</th><th>状态</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="msgTableBody"></tbody>
+            </table>
+            <div id="msgEmpty" class="empty-msg" style="display:none">暂无留言数据</div>
+          </div>
+        </div>
+
+        <!-- ── 图片管理 ── -->
+        <div id="tab-images" style="display:none">
+          <p style="color:var(--gray);font-size:13px;margin-bottom:20px">
+            上传图片后将替换网站对应区域的默认占位图，支持 JPG/PNG/WebP 格式，建议宽高比 16:9，大小不超过 2MB。
+          </p>
+          <div class="img-grid" id="imgGrid"></div>
+        </div>
+
+        <!-- ── 系统设置 ── -->
+        <div id="tab-settings" style="display:none">
+          <div class="settings-card">
+            <h3>🔒 修改管理密码</h3>
+            <input class="inp" type="password" id="oldPwd" placeholder="当前密码">
+            <input class="inp" type="password" id="newPwd" placeholder="新密码（至少6位）">
+            <input class="inp" type="password" id="newPwd2" placeholder="确认新密码">
+            <button class="btn-login" style="margin-top:4px" onclick="changePwd()">保存修改</button>
+            <div class="login-err" id="pwdErr"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 详情弹窗 -->
+<div class="modal-mask" id="detailModal">
+  <div class="modal">
+    <h3>留言详情 <button class="modal-close" onclick="closeModal('detailModal')">✕</button></h3>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<!-- URL 输入弹窗 -->
+<div class="modal-mask" id="urlModal">
+  <div class="modal url-modal">
+    <h3>输入图片链接</h3>
+    <input type="url" id="urlInput" placeholder="https://example.com/image.jpg">
+    <div class="url-modal-btns">
+      <button class="btn-action" style="background:var(--border);color:#333" onclick="closeModal('urlModal')">取消</button>
+      <button class="btn-action" style="background:var(--primary);color:#fff" onclick="saveUrl()">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- 隐藏文件输入 -->
+<input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFileUpload(event)">
+
+<script>
+// ════════════════════════════════════════════
+//  常量 & 工具
+// ════════════════════════════════════════════
+const KEYS = { pwd:'fx_admin_pwd', msgs:'fx_messages', imgs:'fx_images', auth:'fx_admin_auth' };
+const DEFAULT_PWD = 'fuxing@2024';
+let currentFilter = 'all';
+let currentImgSlot = null;
+
+function toast(msg, color='#333') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.style.background = color;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+function closeModal(id){ document.getElementById(id).classList.remove('show') }
+function openModal(id){ document.getElementById(id).classList.add('show') }
+function getMsgs(){ try{return JSON.parse(localStorage.getItem(KEYS.msgs)||'[]')}catch{return[]} }
+function saveMsgs(arr){ localStorage.setItem(KEYS.msgs, JSON.stringify(arr)) }
+function getImgs(){ try{return JSON.parse(localStorage.getItem(KEYS.imgs)||'{}')}catch{return{}} }
+function saveImgs(obj){ localStorage.setItem(KEYS.imgs, JSON.stringify(obj)) }
+const TYPE_MAP = {quote:'产品询价',tech:'技术咨询',coop:'合作洽谈',other:'其他事项','':`-`};
+
+// ════════════════════════════════════════════
+//  登录 / 登出
+// ════════════════════════════════════════════
+function getPwd(){ return localStorage.getItem(KEYS.pwd) || btoa(DEFAULT_PWD) }
+
+function doLogin(){
+  const input = document.getElementById('pwdInput').value;
+  if(!input){ document.getElementById('loginErr').textContent='请输入密码'; return }
+  if(btoa(input) === getPwd()){
+    sessionStorage.setItem(KEYS.auth,'1');
+    document.getElementById('loginWrap').style.display='none';
+    document.getElementById('adminWrap').style.display='block';
+    initAdmin();
+  } else {
+    document.getElementById('loginErr').textContent='密码错误，请重试';
+    document.getElementById('pwdInput').value='';
+  }
+}
+
+function logout(){
+  sessionStorage.removeItem(KEYS.auth);
+  document.getElementById('adminWrap').style.display='none';
+  document.getElementById('loginWrap').style.display='flex';
+  document.getElementById('pwdInput').value='';
+  document.getElementById('loginErr').textContent='';
+}
+
+function changePwd(){
+  const old=document.getElementById('oldPwd').value;
+  const n1=document.getElementById('newPwd').value;
+  const n2=document.getElementById('newPwd2').value;
+  const err=document.getElementById('pwdErr');
+  if(btoa(old)!==getPwd()){err.textContent='当前密码错误';return}
+  if(n1.length<6){err.textContent='新密码至少6位';return}
+  if(n1!==n2){err.textContent='两次输入不一致';return}
+  localStorage.setItem(KEYS.pwd,btoa(n1));
+  err.textContent=''; err.style.color='var(--green)';
+  document.getElementById('pwdErr').textContent='✅ 密码修改成功';
+  setTimeout(()=>{document.getElementById('pwdErr').textContent='';err.style.color='var(--red)'},2000);
+  document.getElementById('oldPwd').value='';
+  document.getElementById('newPwd').value='';
+  document.getElementById('newPwd2').value='';
+}
+
+// ════════════════════════════════════════════
+//  Tab 切换
+// ════════════════════════════════════════════
+const TABS = ['dashboard','messages','images','settings'];
+const TAB_TITLES = {dashboard:'数据概览',messages:'留言管理',images:'图片管理',settings:'系统设置'};
+
+function showTab(name){
+  TABS.forEach(t=>{
+    document.getElementById('tab-'+t).style.display = t===name?'block':'none';
+    document.getElementById('nav-'+t).classList.toggle('active',t===name);
+  });
+  document.getElementById('topbarTitle').textContent = TAB_TITLES[name];
+  if(name==='messages') renderMsgTable();
+  if(name==='images') renderImgGrid();
+  if(name==='dashboard') renderDashboard();
+}
+
+// ════════════════════════════════════════════
+//  数据概览
+// ════════════════════════════════════════════
+function renderDashboard(){
+  const msgs = getMsgs();
+  const total = msgs.length;
+  const newCount = msgs.filter(m=>m.status==='new').length;
+  const handled = msgs.filter(m=>m.status==='handled').length;
+  const today = msgs.filter(m=>m.date===new Date().toISOString().slice(0,10)).length;
+
+  document.getElementById('statsCards').innerHTML=`
+    <div class="stat-card stat-blue"><div class="num">${total}</div><div class="label">总留言数</div></div>
+    <div class="stat-card stat-red"><div class="num">${newCount}</div><div class="label">未处理</div></div>
+    <div class="stat-card stat-green"><div class="num">${handled}</div><div class="label">已处理</div></div>
+    <div class="stat-card stat-orange"><div class="num">${today}</div><div class="label">今日新增</div></div>
+  `;
+  // 最新5条
+  const recent = [...msgs].sort((a,b)=>b.id-a.id).slice(0,5);
+  document.getElementById('recentBody').innerHTML = recent.length ? recent.map(m=>`
+    <tr>
+      <td>${m.date||'-'}</td>
+      <td>${esc(m.name)}</td>
+      <td>${esc(m.phone)}</td>
+      <td class="msg-text">${esc(m.content)}</td>
+      <td><span class="tag ${m.status==='new'?'tag-new':'tag-handled'}">${m.status==='new'?'未处理':'已处理'}</span></td>
+    </tr>`).join('') : `<tr><td colspan="5" class="empty-msg">暂无留言</td></tr>`;
+
+  // 更新顶部红点
+  const badge = document.getElementById('newBadge');
+  if(newCount>0){ badge.textContent=newCount+'条未处理'; badge.style.display='' }
+  else badge.style.display='none';
+}
+
+// ════════════════════════════════════════════
+//  留言管理
+// ════════════════════════════════════════════
+function setFilter(f, btn){
+  currentFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMsgTable();
+}
+
+function renderMsgTable(){
+  const keyword = (document.getElementById('searchInput')?.value||'').toLowerCase();
+  let msgs = getMsgs().sort((a,b)=>b.id-a.id);
+
+  if(currentFilter==='new') msgs=msgs.filter(m=>m.status==='new');
+  else if(currentFilter==='handled') msgs=msgs.filter(m=>m.status==='handled');
+
+  if(keyword) msgs=msgs.filter(m=>
+    (m.name||'').toLowerCase().includes(keyword)||
+    (m.phone||'').includes(keyword)||
+    (m.content||'').toLowerCase().includes(keyword)||
+    (m.company||'').toLowerCase().includes(keyword)
+  );
+
+  const empty = document.getElementById('msgEmpty');
+  const tbody = document.getElementById('msgTableBody');
+  if(!msgs.length){ tbody.innerHTML=''; empty.style.display=''; return }
+  empty.style.display='none';
+  tbody.innerHTML = msgs.map(m=>`
+    <tr>
+      <td style="white-space:nowrap">${m.date||'-'}</td>
+      <td>${esc(m.name)}</td>
+      <td>${esc(m.phone)}</td>
+      <td>${esc(m.company||'-')}</td>
+      <td>${TYPE_MAP[m.type]||m.type||'-'}</td>
+      <td class="msg-text">${esc(m.content)}</td>
+      <td><span class="tag ${m.source==='h5'?'tag-h5':'tag-web'}">${m.source==='h5'?'H5':'Web'}</span></td>
+      <td><span class="tag ${m.status==='new'?'tag-new':'tag-handled'}">${m.status==='new'?'未处理':'已处理'}</span></td>
+      <td>
+        <div class="tbl-actions">
+          <button class="tbl-btn btn-view" onclick="viewMsg(${m.id})">详情</button>
+          ${m.status==='new'?`<button class="tbl-btn btn-done" onclick="markHandled(${m.id})">标记处理</button>`:''}
+          <button class="tbl-btn btn-del" onclick="delMsg(${m.id})">删除</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function viewMsg(id){
+  const m = getMsgs().find(x=>x.id===id);
+  if(!m) return;
+  document.getElementById('detailContent').innerHTML=`
+    <div class="detail-grid">
+      <div class="detail-item"><label>姓名</label><div class="val">${esc(m.name)}</div></div>
+      <div class="detail-item"><label>电话</label><div class="val">${esc(m.phone)}</div></div>
+      <div class="detail-item"><label>公司</label><div class="val">${esc(m.company||'-')}</div></div>
+      <div class="detail-item"><label>邮箱</label><div class="val">${esc(m.email||'-')}</div></div>
+      <div class="detail-item"><label>咨询类型</label><div class="val">${TYPE_MAP[m.type]||m.type||'-'}</div></div>
+      <div class="detail-item"><label>提交时间</label><div class="val">${m.date||'-'}</div></div>
+      <div class="detail-item"><label>来源</label><div class="val">${m.source==='h5'?'移动端H5':'桌面Web'}</div></div>
+      <div class="detail-item"><label>状态</label><div class="val">${m.status==='new'?'⏳ 未处理':'✅ 已处理'}</div></div>
+      <div class="detail-item detail-content"><label>留言内容</label><div class="val">${esc(m.content)}</div></div>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end">
+      ${m.status==='new'?`<button class="btn-action" style="background:var(--green);color:#fff" onclick="markHandled(${m.id});closeModal('detailModal')">✅ 标记已处理</button>`:''}
+      <button class="btn-action" style="background:var(--red);color:#fff" onclick="delMsg(${m.id});closeModal('detailModal')">🗑️ 删除</button>
+    </div>
+  `;
+  openModal('detailModal');
+}
+
+function markHandled(id){
+  const msgs = getMsgs();
+  const m = msgs.find(x=>x.id===id);
+  if(m){ m.status='handled'; saveMsgs(msgs); renderMsgTable(); renderDashboard(); toast('已标记为处理完毕','#22c55e') }
+}
+
+function delMsg(id){
+  if(!confirm('确定删除该留言？')) return;
+  saveMsgs(getMsgs().filter(x=>x.id!==id));
+  renderMsgTable(); renderDashboard();
+  toast('留言已删除','#ef4444');
+}
+
+function clearHandled(){
+  if(!confirm('确定清除所有"已处理"的留言？')) return;
+  saveMsgs(getMsgs().filter(m=>m.status!=='handled'));
+  renderMsgTable(); renderDashboard();
+  toast('已清除处理完毕的留言');
+}
+
+function exportCSV(){
+  const msgs = getMsgs().sort((a,b)=>b.id-a.id);
+  if(!msgs.length){ toast('暂无数据可导出'); return }
+  const headers = ['日期','姓名','电话','公司','邮箱','咨询类型','留言内容','来源','状态'];
+  const rows = msgs.map(m=>[
+    m.date||'', m.name||'', m.phone||'', m.company||'', m.email||'',
+    TYPE_MAP[m.type]||m.type||'', (m.content||'').replace(/,/g,'，'),
+    m.source==='h5'?'移动H5':'桌面Web', m.status==='new'?'未处理':'已处理'
+  ]);
+  const csv = '\uFEFF' + [headers, ...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download = `留言数据_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  toast('导出成功','#22c55e');
+}
+
+function esc(str){ return String(str||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
+
+// ════════════════════════════════════════════
+//  图片管理
+// ════════════════════════════════════════════
+const IMG_SLOTS = [
+  {id:'about-main', name:'关于我们主图', desc:'首页"关于我们"区域主图', emoji:'🏭'},
+  {id:'equip-cnc1', name:'五轴联动加工中心', desc:'设备中心 - 数控机床1', emoji:'🤖'},
+  {id:'equip-cnc2', name:'数控车削加工中心', desc:'设备中心 - 数控机床2', emoji:'⚙️'},
+  {id:'equip-cnc3', name:'卧式加工中心', desc:'设备中心 - 数控机床3', emoji:'🔩'},
+  {id:'equip-wire1', name:'慢走丝线切割', desc:'设备中心 - 线切割1', emoji:'⚡'},
+  {id:'equip-wire2', name:'快走丝线切割', desc:'设备中心 - 线切割2', emoji:'🔌'},
+  {id:'equip-edm1', name:'电火花成形机', desc:'设备中心 - 其他设备', emoji:'🔥'},
+  {id:'prod-1', name:'精密齿轮', desc:'产品展示第1项', emoji:'⚙️'},
+  {id:'prod-2', name:'异形轴类零件', desc:'产品展示第2项', emoji:'🔩'},
+  {id:'prod-3', name:'精密模具零件', desc:'产品展示第3项', emoji:'🔧'},
+  {id:'prod-4', name:'结构件总成', desc:'产品展示第4项', emoji:'🏗️'},
+  {id:'prod-5', name:'精密法兰盘', desc:'产品展示第5项', emoji:'💎'},
+  {id:'prod-6', name:'铝合金壳体', desc:'产品展示第6项', emoji:'🔮'},
+  {id:'prod-7', name:'连接器支架', desc:'产品展示第7项', emoji:'🛠️'},
+];
+
+function renderImgGrid(){
+  const imgs = getImgs();
+  document.getElementById('imgGrid').innerHTML = IMG_SLOTS.map(slot=>{
+    const src = imgs[slot.id];
+    return `
+    <div class="img-card" id="card-${slot.id}">
+      <div class="img-preview" id="preview-${slot.id}"
+           style="${src?`background-image:url('${src}');background-size:cover;background-position:center`:'background:linear-gradient(135deg,#1a3a5c,#2d6a9f)'}">
+        ${src?`<div class="has-img-overlay"><span style="color:#fff;font-size:13px">已设置图片</span></div>`:`<span style="font-size:48px">${slot.emoji}</span>`}
+      </div>
+      <div class="img-card-body">
+        <div class="img-card-name">${slot.name}</div>
+        <div class="img-card-desc">${slot.desc}</div>
+        <div class="img-actions">
+          <button class="btn-upload-img" onclick="triggerUpload('${slot.id}')">📁 上传图片</button>
+          <button class="btn-url-img" onclick="openUrlInput('${slot.id}')">🔗 输入链接</button>
+          ${src?`<button class="btn-reset-img" onclick="resetImg('${slot.id}')">↩ 还原</button>`:''}
+        </div>
+        <div class="img-status ${src?'has-img':'no-img'}" id="status-${slot.id}">
+          ${src?'✅ 已使用自定义图片':'⬜ 使用默认占位图'}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function triggerUpload(slotId){
+  currentImgSlot = slotId;
+  document.getElementById('fileInput').click();
+}
+
+function handleFileUpload(e){
+  const file = e.target.files[0];
+  if(!file || !currentImgSlot) return;
+  if(file.size > 2*1024*1024){ toast('图片大小不能超过2MB','#ef4444'); return }
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    applyImg(currentImgSlot, ev.target.result);
+    toast('图片上传成功','#22c55e');
+  };
+  reader.readAsDataURL(file);
+  e.target.value='';
+}
+
+function openUrlInput(slotId){
+  currentImgSlot = slotId;
+  document.getElementById('urlInput').value = getImgs()[slotId]||'';
+  openModal('urlModal');
+}
+
+function saveUrl(){
+  const url = document.getElementById('urlInput').value.trim();
+  if(!url){ toast('请输入有效链接','#ef4444'); return }
+  applyImg(currentImgSlot, url);
+  closeModal('urlModal');
+  toast('图片链接已保存','#22c55e');
+}
+
+function applyImg(slotId, src){
+  const imgs = getImgs();
+  imgs[slotId] = src;
+  saveImgs(imgs);
+  renderImgGrid();
+}
+
+function resetImg(slotId){
+  if(!confirm('确定还原为默认占位图？')) return;
+  const imgs = getImgs();
+  delete imgs[slotId];
+  saveImgs(imgs);
+  renderImgGrid();
+  toast('已还原默认图片');
+}
+
+// ════════════════════════════════════════════
+//  初始化
+// ════════════════════════════════════════════
+function initAdmin(){
+  renderDashboard();
+  // 更新导航红点
+  const newCount = getMsgs().filter(m=>m.status==='new').length;
+  const badge = document.getElementById('newBadge');
+  if(newCount){ badge.textContent=newCount+'条未处理'; badge.style.display='' }
+}
+
+// 页面加载时检查是否已登录（session）
+window.addEventListener('DOMContentLoaded', function(){
+  if(sessionStorage.getItem(KEYS.auth)==='1'){
+    document.getElementById('loginWrap').style.display='none';
+    document.getElementById('adminWrap').style.display='block';
+    initAdmin();
+  }
+  // 点击遮罩关闭弹窗
+  document.querySelectorAll('.modal-mask').forEach(el=>{
+    el.addEventListener('click', function(e){ if(e.target===el) el.classList.remove('show') });
+  });
+});
+</script>
+</body>
+</html>
