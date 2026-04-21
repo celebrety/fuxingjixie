@@ -167,7 +167,7 @@ body{font-family:'Microsoft YaHei','PingFang SC',Arial,sans-serif;background:var
 
 /* ── Responsive ── */
 @media(max-width:900px){
-  .sidebar{width:60px}.sb-logo .name,.sb-logo .sub,.sb-nav a span{display:none}
+  .sidebar{width:60px}.sb-logo .name,.sb-logo .sub,.sb-nav a>span:not(.icon){display:none}
   .sb-nav a{justify-content:center;padding:14px}.main{margin-left:60px}
   .stats{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){
@@ -454,6 +454,12 @@ async function saveImgs(obj){
     }
     
     try {
+        // 检查数据大小
+        const dataSize = JSON.stringify({ images: obj }).length;
+        if(dataSize > 90*1024) { // 90KB 限制，留 10KB 余量
+            throw new Error('图片配置数据过大（超过90KB），请使用图片链接而非上传');
+        }
+        
         const response = await fetch(`https://api.jsonbin.io/v3/b/${CLOUD_CONFIG.IMAGES_BIN_ID}`, {
             method: 'PUT',
             headers: {
@@ -464,15 +470,17 @@ async function saveImgs(obj){
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, detail: ${errorText}`);
         }
         
         console.log('图片配置已保存到云端');
         // 同时保存到本地作为缓存
         localStorage.setItem(KEYS.imgs, JSON.stringify(obj));
+        toast('图片配置已保存','#22c55e');
     } catch (error) {
         console.error('保存图片配置到云端失败:', error);
-        toast('保存失败', '#ef4444');
+        toast('保存失败: ' + error.message, '#ef4444');
         // 降级到本地
         localStorage.setItem(KEYS.imgs, JSON.stringify(obj));
     }
@@ -751,14 +759,55 @@ function triggerUpload(slotId){
 function handleFileUpload(e){
   const file = e.target.files[0];
   if(!file || !currentImgSlot) return;
-  if(file.size > 2*1024*1024){ toast('图片大小不能超过2MB','#ef4444'); return }
+  
+  // 检查文件大小（限制为 500KB，避免超出 JSONBin 限制）
+  if(file.size > 500*1024){ 
+    toast('图片大小不能超过500KB，请先压缩图片','#ef4444'); 
+    return; 
+  }
+  
   const reader = new FileReader();
   reader.onload = function(ev){
-    applyImg(currentImgSlot, ev.target.result);
-    toast('图片上传成功','#22c55e');
+    // 如果是图片文件，进行压缩处理
+    if(file.type.startsWith('image/')) {
+      compressImage(ev.target.result, 800, 0.7, function(compressedBase64){
+        applyImg(currentImgSlot, compressedBase64);
+        toast('图片上传成功','#22c55e');
+      });
+    } else {
+      applyImg(currentImgSlot, ev.target.result);
+      toast('图片上传成功','#22c55e');
+    }
   };
   reader.readAsDataURL(file);
   e.target.value='';
+}
+
+// 图片压缩函数
+function compressImage(base64, maxWidth, quality, callback) {
+  const img = new Image();
+  img.onload = function() {
+    const canvas = document.createElement('canvas');
+    let width = img.width;
+    let height = img.height;
+    
+    // 计算新尺寸
+    if(width > maxWidth) {
+      height = (height * maxWidth) / width;
+      width = maxWidth;
+    }
+    
+    canvas.width = width;
+    canvas.height = height;
+    
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, width, height);
+    
+    // 压缩为 JPEG
+    const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+    callback(compressedBase64);
+  };
+  img.src = base64;
 }
 
 async function openUrlInput(slotId){
@@ -777,10 +826,15 @@ function saveUrl(){
 }
 
 async function applyImg(slotId, src){
-  const imgs = await getImgs();
-  imgs[slotId] = src;
-  await saveImgs(imgs);
-  renderImgGrid();
+  try {
+    const imgs = await getImgs();
+    imgs[slotId] = src;
+    await saveImgs(imgs);
+    renderImgGrid();
+  } catch (error) {
+    console.error('应用图片失败:', error);
+    toast('应用图片失败', '#ef4444');
+  }
 }
 
 async function resetImg(slotId){
