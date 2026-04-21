@@ -811,8 +811,10 @@ async function submitMsg(e) {
     const name = document.getElementById('fName').value.trim();
     const phone = document.getElementById('fPhone').value.trim();
     const content = document.getElementById('fContent').value.trim();
-    if (!name || !phone || !content) {
-        alert('请填写必填项：姓名、电话和内容');
+    const typeEl = document.getElementById('fType');
+    const typeVal = typeEl ? typeEl.value : '';
+    if (!name || !phone || !content || !typeVal) {
+        alert('请填写必填项：姓名、电话、咨询类型和内容');
         // 恢复按钮状态
         if (submitBtn) {
             submitBtn.disabled = false;
@@ -840,14 +842,13 @@ async function submitMsg(e) {
     showToast(langs[currentLang]['form-ok'] || '留言成功！');
 
     // 准备留言数据
-    const typeEl = document.getElementById('fType');
     const newMessage = {
         id: Date.now(),
         name: name,
         phone: phone,
         email: '',
         company: company,
-        type: typeEl ? typeEl.value : '',
+        type: typeVal,
         content: content,
         date: date,
         stars: 5,
@@ -856,28 +857,38 @@ async function submitMsg(e) {
     };
     
     // 后台异步保存到云端（不阻塞用户体验）
+    // saveMessagesToCloud 内置5次重试+指数退避，失败后自动加入重试队列持续同步
     (async function() {
         try {
             if (isCloudConfigured()) {
-                const cloudMessages = await fetchMessagesFromCloud();
-                const messages = cloudMessages || [];
+                var cloudMessages = await fetchMessagesFromCloud();
+                var messages = cloudMessages || [];
                 messages.unshift(newMessage);
-                const success = await saveMessagesToCloud(messages);
+                var success = await saveMessagesToCloud(messages);
                 if (success) {
                     console.log('H5留言已成功保存到云端');
                 } else {
-                    throw new Error('云端保存失败');
+                    // saveMessagesToCloud 已将数据加入重试队列，不会丢失
+                    console.warn('H5留言云端保存失败，已加入重试队列');
                 }
             } else {
-                throw new Error('云端未配置');
-            }
-        } catch(error) {
-            console.warn('云端保存失败，使用本地缓存:', error);
-            try {
+                // 云端未配置，仅保存到本地
                 var _msgs = JSON.parse(localStorage.getItem('fx_messages') || '[]');
                 _msgs.unshift(newMessage);
                 localStorage.setItem('fx_messages', JSON.stringify(_msgs));
-                saveToOfflineCache(_msgs, 'messages');
+            }
+        } catch(error) {
+            // 最终兜底：确保本地一定有数据
+            console.error('H5留言保存异常:', error);
+            try {
+                var _msgs = JSON.parse(localStorage.getItem('fx_messages') || '[]');
+                // 检查是否已存在（避免重复）
+                var exists = _msgs.some(function(m) { return m.id === newMessage.id; });
+                if (!exists) {
+                    _msgs.unshift(newMessage);
+                    localStorage.setItem('fx_messages', JSON.stringify(_msgs));
+                    saveToOfflineCache(_msgs, 'messages');
+                }
             } catch(e) {
                 console.error('本地保存也失败:', e);
             }
@@ -887,7 +898,7 @@ async function submitMsg(e) {
                 submitBtn.disabled = false;
                 submitBtn.style.opacity = '';
                 submitBtn.style.cursor = '';
-                const btnTexts = { zh: '🚀 提交留言', en: '🚀 Submit', ja: '🚀 送信する' };
+                var btnTexts = { zh: '🚀 提交留言', en: '🚀 Submit', ja: '🚀 送信する' };
                 submitBtn.innerHTML = btnTexts[currentLang] || btnTexts.zh;
             }
         }

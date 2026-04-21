@@ -985,9 +985,11 @@ async function submitMessage(e) {
     const phone = document.getElementById('msgPhone').value.trim();
     const company = document.getElementById('msgCompany').value.trim();
     const content = document.getElementById('msgContent').value.trim();
+    const typeEl = document.getElementById('msgType');
+    const typeVal = typeEl ? typeEl.value : '';
 
-    if (!name || !phone || !content) {
-        alert('请填写必填项：姓名、电话和内容');
+    if (!name || !phone || !content || !typeVal) {
+        alert('请填写必填项：姓名、电话、咨询类型和内容');
         // 恢复按钮状态
         if (submitBtn) {
             submitBtn.disabled = false;
@@ -1023,8 +1025,8 @@ async function submitMessage(e) {
     renderMessages();
 
     // 异步保存到云端（不阻塞用户体验）
+    // saveMessagesToCloud 内置5次重试+指数退避，失败后自动加入重试队列持续同步
     const emailEl = document.getElementById('msgEmail');
-    const typeEl = document.getElementById('msgType');
     
     const newMessage = {
         id: Date.now(),
@@ -1032,7 +1034,7 @@ async function submitMessage(e) {
         phone: phone,
         email: emailEl ? emailEl.value.trim() : '',
         company: company,
-        type: typeEl ? typeEl.value : '',
+        type: typeVal,
         content: content,
         date: date,
         stars: 5,
@@ -1044,25 +1046,34 @@ async function submitMessage(e) {
     (async function() {
         try {
             if (isCloudConfigured()) {
-                const cloudMessages = await fetchMessagesFromCloud();
-                const messages = cloudMessages || [];
+                var cloudMessages = await fetchMessagesFromCloud();
+                var messages = cloudMessages || [];
                 messages.unshift(newMessage);
-                const success = await saveMessagesToCloud(messages);
+                var success = await saveMessagesToCloud(messages);
                 if (success) {
                     console.log('留言已成功保存到云端');
                 } else {
-                    throw new Error('云端保存失败');
+                    // saveMessagesToCloud 已将数据加入重试队列，不会丢失
+                    console.warn('留言云端保存失败，已加入重试队列');
                 }
             } else {
-                throw new Error('云端未配置');
-            }
-        } catch(error) {
-            console.warn('云端保存失败，使用本地缓存:', error);
-            try {
+                // 云端未配置，仅保存到本地
                 var _msgs = JSON.parse(localStorage.getItem('fx_messages') || '[]');
                 _msgs.unshift(newMessage);
                 localStorage.setItem('fx_messages', JSON.stringify(_msgs));
-                saveToOfflineCache(_msgs, 'messages');
+            }
+        } catch(error) {
+            // 最终兆底：确保本地一定有数据
+            console.error('留言保存异常:', error);
+            try {
+                var _msgs = JSON.parse(localStorage.getItem('fx_messages') || '[]');
+                // 检查是否已存在（避免重复）
+                var exists = _msgs.some(function(m) { return m.id === newMessage.id; });
+                if (!exists) {
+                    _msgs.unshift(newMessage);
+                    localStorage.setItem('fx_messages', JSON.stringify(_msgs));
+                    saveToOfflineCache(_msgs, 'messages');
+                }
             } catch(e) {
                 console.error('本地保存也失败:', e);
             }
