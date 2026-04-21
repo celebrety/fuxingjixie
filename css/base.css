@@ -1,0 +1,3 @@
+/* ===== 版本互斥显示 ===== */
+html.is-desktop #h5-version { display: none !important; }
+html.is-mobile  #web-version { display: none !important; }
