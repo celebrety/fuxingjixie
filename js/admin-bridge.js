@@ -21,76 +21,170 @@
     
     async function applyCustomImages() {
         try {
-            // 优先从云端获取图片配置
+            // 1. 加载传统图片配置 (images_config)
             let imgs = {};
             
-            // 检查云端配置是否可用
             if (typeof isCloudConfigured === 'function' && isCloudConfigured() && 
                 typeof fetchImagesFromCloud === 'function') {
                 try {
                     const cloudImages = await fetchImagesFromCloud();
                     if (cloudImages && typeof cloudImages === 'object') {
                         imgs = cloudImages;
-                        console.log('已从云端加载图片配置');
+                        console.log('已从云端加载传统图片配置');
                     }
                 } catch(e) {
                     console.warn('云端图片加载失败，使用本地缓存:', e);
                 }
             }
             
-            // 如果云端没有数据，回退到本地缓存
             if (Object.keys(imgs).length === 0) {
                 imgs = JSON.parse(localStorage.getItem('fx_images') || '{}');
             }
             
-            if (!imgs || Object.keys(imgs).length === 0) return;
+            // 2. 应用传统图片
+            applyTraditionalImages(imgs);
             
-            console.log('开始应用自定义图片，共', Object.keys(imgs).length, '张');
-            
-            // 1. 处理Web端（通过ID查找）
-            Object.keys(imgs).forEach(function(id) {
-                if (!imgs[id]) return;
-                var el = document.getElementById('fx-img-' + id);
-                if (el) {
-                    el.style.backgroundImage = 'url("' + imgs[id] + '")';
-                    el.style.backgroundSize = 'cover';
-                    el.style.backgroundPosition = 'center';
-                    el.style.backgroundRepeat = 'no-repeat';
+            // 3. 加载并应用展示项目图片 (display_items)
+            if (typeof fetchDisplayItems === 'function') {
+                try {
+                    const [equipment, products] = await Promise.all([
+                        fetchDisplayItems('equipment'),
+                        fetchDisplayItems('product')
+                    ]);
                     
-                    // 隐藏默认emoji和占位符
-                    var emoji = el.querySelector('.equipment-emoji, .product-emoji');
-                    if (emoji) emoji.style.display = 'none';
-                    var span = el.querySelector('span[style*="font-size:90px"]');
-                    if (span) span.style.display = 'none';
-                    console.log('Web端已加载图片:', id);
+                    const allItems = [...equipment, ...products];
+                    applyDisplayItemImages(allItems);
+                    console.log('已加载并应用展示项目图片，共', allItems.length, '个');
+                } catch(e) {
+                    console.warn('展示项目图片加载失败:', e);
                 }
-            });
-            
-            // 2. 处理H5端（通过CSS类名查找）
-            Object.keys(H5_CLASS_MAPPING).forEach(function(cssClass) {
-                var cloudId = H5_CLASS_MAPPING[cssClass];
-                if (!imgs[cloudId]) return;
-                
-                // 查找所有使用该CSS类的元素
-                var elements = document.querySelectorAll('.' + cssClass);
-                elements.forEach(function(el) {
-                    el.style.backgroundImage = 'url("' + imgs[cloudId] + '")';
-                    el.style.backgroundSize = 'cover';
-                    el.style.backgroundPosition = 'center';
-                    el.style.backgroundRepeat = 'no-repeat';
-                    
-                    // 隐藏默认emoji
-                    var emojiSpan = el.querySelector('span:not(.equip-card-tag)');
-                    if (emojiSpan && emojiSpan.textContent.length <= 2) {
-                        emojiSpan.style.display = 'none';
-                    }
-                    console.log('H5端已加载图片:', cloudId, '->', cssClass);
-                });
-            });
+            }
             
         } catch(e) {
             console.warn('Failed to load custom images:', e);
         }
+    }
+    
+    /**
+     * 应用传统图片配置
+     */
+    function applyTraditionalImages(imgs) {
+        if (!imgs) imgs = {};
+        
+        console.log('开始应用传统图片配置，共', Object.keys(imgs).length, '张');
+        
+        // 1. 处理Web端（通过ID查找）
+        // 首先清除所有fx-img-元素图片，然后根据imgs重新应用
+        var allWebElements = document.querySelectorAll('[id^="fx-img-"]');
+        allWebElements.forEach(function(el) {
+            // 清除背景图
+            el.style.backgroundImage = '';
+            el.style.backgroundSize = '';
+            el.style.backgroundPosition = '';
+            el.style.backgroundRepeat = '';
+            
+            // 显示默认emoji和占位符
+            var emoji = el.querySelector('.equipment-emoji, .product-emoji');
+            if (emoji) emoji.style.display = '';
+            var span = el.querySelector('span[style*="font-size:90px"]');
+            if (span) span.style.display = '';
+        });
+        
+        // 然后应用有图片的元素
+        Object.keys(imgs).forEach(function(id) {
+            if (!imgs[id]) return;
+            var el = document.getElementById('fx-img-' + id);
+            if (el) {
+                el.style.backgroundImage = 'url("' + imgs[id] + '")';
+                el.style.backgroundSize = 'cover';
+                el.style.backgroundPosition = 'center';
+                el.style.backgroundRepeat = 'no-repeat';
+                
+                // 隐藏默认emoji和占位符
+                var emoji = el.querySelector('.equipment-emoji, .product-emoji');
+                if (emoji) emoji.style.display = 'none';
+                var span = el.querySelector('span[style*="font-size:90px"]');
+                if (span) span.style.display = 'none';
+            }
+        });
+        
+        // 2. 处理H5端（通过CSS类名查找）
+        // 首先清除所有H5端图片
+        Object.keys(H5_CLASS_MAPPING).forEach(function(cssClass) {
+            var elements = document.querySelectorAll('.' + cssClass);
+            elements.forEach(function(el) {
+                el.style.backgroundImage = '';
+                el.style.backgroundSize = '';
+                el.style.backgroundPosition = '';
+                el.style.backgroundRepeat = '';
+                
+                var emojiSpan = el.querySelector('span:not(.equip-card-tag)');
+                if (emojiSpan && emojiSpan.textContent.length <= 2) {
+                    emojiSpan.style.display = '';
+                }
+            });
+        });
+        
+        // 然后应用有图片的元素
+        Object.keys(H5_CLASS_MAPPING).forEach(function(cssClass) {
+            var cloudId = H5_CLASS_MAPPING[cssClass];
+            if (!imgs[cloudId]) return;
+            
+            var elements = document.querySelectorAll('.' + cssClass);
+            elements.forEach(function(el) {
+                el.style.backgroundImage = 'url("' + imgs[cloudId] + '")';
+                el.style.backgroundSize = 'cover';
+                el.style.backgroundPosition = 'center';
+                el.style.backgroundRepeat = 'no-repeat';
+                
+                var emojiSpan = el.querySelector('span:not(.equip-card-tag)');
+                if (emojiSpan && emojiSpan.textContent.length <= 2) {
+                    emojiSpan.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    /**
+     * 应用展示项目图片
+     */
+    function applyDisplayItemImages(items) {
+        if (!items || items.length === 0) return;
+        
+        // 首先清除所有fx-img-元素的display_items图片
+        var allWebElements = document.querySelectorAll('[id^="fx-img-"]');
+        allWebElements.forEach(function(el) {
+            // 只清除由display_items设置的图片（通过检查是否有image_key）
+            var emoji = el.querySelector('.equipment-emoji, .product-emoji');
+            if (emoji && emoji.style.display === 'none') {
+                // 如果emoji被隐藏了，先恢复
+                el.style.backgroundImage = '';
+                el.style.backgroundSize = '';
+                el.style.backgroundPosition = '';
+                el.style.backgroundRepeat = '';
+                emoji.style.display = '';
+            }
+        });
+        
+        // 然后应用有图片的展示项目
+        items.forEach(function(item) {
+            if (!item.image_url || !item.image_key) return;
+            
+            // Web 端
+            var webEl = document.getElementById('fx-img-' + item.image_key);
+            if (webEl) {
+                webEl.style.backgroundImage = 'url("' + item.image_url + '")';
+                webEl.style.backgroundSize = 'cover';
+                webEl.style.backgroundPosition = 'center';
+                webEl.style.backgroundRepeat = 'no-repeat';
+                
+                var emoji = webEl.querySelector('.equipment-emoji, .product-emoji');
+                if (emoji) emoji.style.display = 'none';
+            }
+            
+            // H5 端也需要处理（通过已有的 H5_CLASS_MAPPING）
+            // 注意：动态渲染的H5元素已经内联了背景图，这里主要是兼容静态HTML
+        });
     }
     
     // DOM加载完成后执行
@@ -104,7 +198,11 @@
     // 监听localStorage变化（用于同浏览器不同标签页同步）
     window.addEventListener('storage', function(e) {
         if (e.key === 'fx_images') {
+            console.log('检测到 fx_images 变化，重新应用图片');
             setTimeout(applyCustomImages, 50);
         }
     });
+    
+    // 暴露 applyCustomImages 到全局，供外部调用
+    window.refreshCustomImages = applyCustomImages;
 })();

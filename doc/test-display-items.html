@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据库诊断工具</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Microsoft YaHei', Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #1a3a5c;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #1a3a5c;
+    }
+    .section {
+      margin: 20px 0;
+      padding: 20px;
+      background: #f9f9f9;
+      border-radius: 6px;
+    }
+    .section h2 {
+      color: #333;
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+    button {
+      background: #1a3a5c;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 5px;
+    }
+    button:hover {
+      background: #254e7a;
+    }
+    button.secondary {
+      background: #6c757d;
+    }
+    button.secondary:hover {
+      background: #5a6268;
+    }
+    .result {
+      margin-top: 15px;
+      padding: 15px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .success {
+      color: #22c55e;
+      font-weight: bold;
+    }
+    .error {
+      color: #ef4444;
+      font-weight: bold;
+    }
+    .warning {
+      color: #f59e0b;
+      font-weight: bold;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+      font-size: 13px;
+    }
+    th {
+      background: #1a3a5c;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 复兴机械厂 - 数据库诊断工具</h1>
+    
+    <div class="section">
+      <h2>1. 检查 CLOUD_CONFIG 配置</h2>
+      <button onclick="checkConfig()">检查配置</button>
+      <div id="configResult" class="result" style="display:none"></div>
+    </div>
+
+    <div class="section">
+      <h2>2. 检查 display_items 表结构</h2>
+      <button onclick="checkTableStructure()">检查表结构</button>
+      <div id="tableStructureResult" class="result" style="display:none"></div>
+    </div>
+
+    <div class="section">
+      <h2>3. 检查设备数据</h2>
+      <button onclick="checkEquipment()">查询设备数据</button>
+      <div id="equipmentResult" class="result" style="display:none"></div>
+    </div>
+
+    <div class="section">
+      <h2>4. 检查产品数据</h2>
+      <button onclick="checkProducts()">查询产品数据</button>
+      <div id="productsResult" class="result" style="display:none"></div>
+    </div>
+
+    <div class="section">
+      <h2>5. 执行数据库升级脚本</h2>
+      <p style="margin-bottom: 10px; color: #666;">如果表不存在，请先在 Supabase Dashboard 中执行 SQL 脚本：</p>
+      <button class="secondary" onclick="showUpgradeSQL()">查看升级SQL</button>
+      <div id="upgradeSQLResult" class="result" style="display:none"></div>
+    </div>
+  </div>
+
+  <script>
+    const CLOUD_CONFIG = {
+      SUPABASE_URL: 'https://sjpkjfpaocswveydbxvc.supabase.co',
+      SUPABASE_KEY: 'sb_publishable_RbIuhqGsWbNzfNE-cXiZNA_7BR1_1fM'
+    };
+
+    function checkConfig() {
+      const result = document.getElementById('configResult');
+      result.style.display = 'block';
+      
+      let output = '检查 CLOUD_CONFIG 配置...\n\n';
+      output += 'SUPABASE_URL: ' + CLOUD_CONFIG.SUPABASE_URL + '\n';
+      output += 'SUPABASE_KEY: ' + (CLOUD_CONFIG.SUPABASE_KEY ? '✓ 已配置' : '✗ 未配置') + '\n';
+      
+      if (CLOUD_CONFIG.SUPABASE_KEY && CLOUD_CONFIG.SUPABASE_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
+        output += '\n<span class="success">✓ 配置正确</span>';
+      } else {
+        output += '\n<span class="error">✗ 配置无效，请检查 CLOUD_CONFIG</span>';
+      }
+      
+      result.innerHTML = output;
+    }
+
+    async function checkTableStructure() {
+      const result = document.getElementById('tableStructureResult');
+      result.style.display = 'block';
+      result.innerHTML = '<span class="warning">正在检查表结构...</span>';
+      
+      try {
+        const url = `${CLOUD_CONFIG.SUPABASE_URL}/rest/v1/display_items?select=*&limit=1`;
+        const response = await fetch(url, {
+          headers: {
+            'apikey': CLOUD_CONFIG.SUPABASE_KEY,
+            'Authorization': `Bearer ${CLOUD_CONFIG.SUPABASE_KEY}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          let output = '<span class="success">✓ display_items 表存在</span>\n\n';
+          output += '表结构字段:\n';
+          
+          if (data.length > 0) {
+            Object.keys(data[0]).forEach(key => {
+              output += `  - ${key}\n`;
+            });
+          } else {
+            output += '  (表为空，请先插入数据)\n';
+          }
+          
+          result.innerHTML = output;
+        } else {
+          const errorText = await response.text();
+          result.innerHTML = `<span class="error">✗ 表不存在或访问失败 (${response.status})</span>\n\n错误详情:\n${errorText}\n\n<span class="warning">请执行数据库升级脚本创建表</span>`;
+        }
+      } catch (error) {
+        result.innerHTML = `<span class="error">✗ 检查失败</span>\n\n${error.message}`;
+      }
+    }
+
+    async function checkEquipment() {
+      const result = document.getElementById('equipmentResult');
+      result.style.display = 'block';
+      result.innerHTML = '<span class="warning">正在查询设备数据...</span>';
+      
+      try {
+        const url = `${CLOUD_CONFIG.SUPABASE_URL}/rest/v1/display_items?category=eq.equipment&order=sort_order.asc`;
+        const response = await fetch(url, {
+          headers: {
+            'apikey': CLOUD_CONFIG.SUPABASE_KEY,
+            'Authorization': `Bearer ${CLOUD_CONFIG.SUPABASE_KEY}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.length === 0) {
+            result.innerHTML = '<span class="warning">⚠ 设备数据为空</span>';
+            return;
+          }
+          
+          let html = `<span class="success">✓ 查询成功，共 ${data.length} 条设备数据</span>\n\n`;
+          html += '<table>';
+          html += '<tr><th>ID</th><th>排序</th><th>中文名称</th><th>分类</th><th>状态</th></tr>';
+          
+          data.forEach(item => {
+            html += `<tr>
+              <td>${item.id.substring(0, 8)}...</td>
+              <td>${item.sort_order}</td>
+              <td>${item.title_zh}</td>
+              <td>${item.tags ? item.tags.join(', ') : '-'}</td>
+              <td>${item.is_active ? '启用' : '禁用'}</td>
+            </tr>`;
+          });
+          
+          html += '</table>';
+          result.innerHTML = html;
+        } else {
+          const errorText = await response.text();
+          result.innerHTML = `<span class="error">✗ 查询失败 (${response.status})</span>\n\n${errorText}`;
+        }
+      } catch (error) {
+        result.innerHTML = `<span class="error">✗ 查询失败</span>\n\n${error.message}`;
+      }
+    }
+
+    async function checkProducts() {
+      const result = document.getElementById('productsResult');
+      result.style.display = 'block';
+      result.innerHTML = '<span class="warning">正在查询产品数据...</span>';
+      
+      try {
+        const url = `${CLOUD_CONFIG.SUPABASE_URL}/rest/v1/display_items?category=eq.product&order=sort_order.asc`;
+        const response = await fetch(url, {
+          headers: {
+            'apikey': CLOUD_CONFIG.SUPABASE_KEY,
+            'Authorization': `Bearer ${CLOUD_CONFIG.SUPABASE_KEY}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.length === 0) {
+            result.innerHTML = '<span class="warning">⚠ 产品数据为空</span>';
+            return;
+          }
+          
+          let html = `<span class="success">✓ 查询成功，共 ${data.length} 条产品数据</span>\n\n`;
+          html += '<table>';
+          html += '<tr><th>ID</th><th>排序</th><th>中文名称</th><th>标签</th><th>状态</th></tr>';
+          
+          data.forEach(item => {
+            html += `<tr>
+              <td>${item.id.substring(0, 8)}...</td>
+              <td>${item.sort_order}</td>
+              <td>${item.title_zh}</td>
+              <td>${item.tags ? item.tags.join(', ') : '-'}</td>
+              <td>${item.is_active ? '启用' : '禁用'}</td>
+            </tr>`;
+          });
+          
+          html += '</table>';
+          result.innerHTML = html;
+        } else {
+          const errorText = await response.text();
+          result.innerHTML = `<span class="error">✗ 查询失败 (${response.status})</span>\n\n${errorText}`;
+        }
+      } catch (error) {
+        result.innerHTML = `<span class="error">✗ 查询失败</span>\n\n${error.message}`;
+      }
+    }
+
+    function showUpgradeSQL() {
+      const result = document.getElementById('upgradeSQLResult');
+      result.style.display = 'block';
+      result.innerHTML = `<span class="warning">请按以下步骤执行：</span>
+
+1. 打开 Supabase Dashboard: https://supabase.com/dashboard/project/sjpkjfpaocswveydbxvc
+2. 点击左侧 "SQL Editor"
+3. 打开文件: doc/supabase-schema-upgrade.sql
+4. 复制全部内容并粘贴到 SQL Editor
+5. 点击 "Run" 执行
+6. 验证表已创建并插入数据`;
+    }
+  </script>
+</body>
+</html>

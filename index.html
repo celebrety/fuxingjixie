@@ -89,7 +89,7 @@
                 <span class="lang-divider">|</span>
                 <button class="lang-btn" onclick="switchLang('ja')" id="lang-ja">日本語</button>
             </div>
-            <a href="admin.html" class="admin-entry" title="管理后台">🔧 <span data-lang="admin-entry">管理</span></a>
+            <a href="admin.html" class="admin-entry" title="管理后台" target="_blank" rel="noopener noreferrer">🔧 <span data-lang="admin-entry">管理</span></a>
         </div>
     </div>
 </div>
@@ -113,8 +113,8 @@
             <li><a href="#equipment" data-lang="nav-equipment">设备中心</a></li>
             <li><a href="#products" data-lang="nav-products">产品展示</a></li>
             <li><a href="#process" data-lang="nav-process">工艺流程</a></li>
-            <li><a href="#message" data-lang="nav-message">联系我们</a></li>
-            <li><a href="#message" class="nav-contact-btn" data-lang="nav-quote">获取报价</a></li>
+            <li><a href="#message-web" data-lang="nav-message">联系我们</a></li>
+            <li><a href="#message-web" class="nav-contact-btn" data-lang="nav-quote">获取报价</a></li>
         </ul>
     </div>
 </nav>
@@ -144,7 +144,7 @@
             </p>
             <div class="hero-buttons">
                 <a href="#products" class="btn-primary" data-lang="hero-btn1">🔧 查看产品</a>
-                <a href="#message" class="btn-outline" data-lang="hero-btn2">📩 联系我们</a>
+                <a href="#message-web" class="btn-outline" data-lang="hero-btn2">📩 联系我们</a>
             </div>
             <div class="hero-stats">
                 <div class="stat-item">
@@ -249,7 +249,7 @@
                         <span data-lang="about-li5">年产值超过3000万元，服务客户遍及全国各地及海外</span>
                     </li>
                 </ul>
-                <a href="#message" class="btn-primary" data-lang="about-btn">了解更多 →</a>
+                <a href="#message-web" class="btn-primary" data-lang="about-btn">了解更多 →</a>
             </div>
         </div>
     </div>
@@ -454,7 +454,7 @@
                 </div>
             </div>
             <div class="product-card" onclick="openProductModal('p8')">
-                <div class="product-img product-img-8">
+                <div class="product-img product-img-8" id="fx-img-prod-8">
                     <div class="product-overlay"><span class="product-view-btn" data-lang="view-detail">查看详情</span></div>
                     <span class="product-emoji">🔑</span>
                 </div>
@@ -539,7 +539,7 @@
 </section>
 
 <!-- ===== 留言板 ===== -->
-<section class="section message-board" id="message">
+<section class="section message-board" id="message-web">
     <div class="container">
         <div class="section-header">
             <div class="section-tag" data-lang="msg-tag">在线留言</div>
@@ -747,7 +747,7 @@
                     <li><a href="#equipment" data-lang="nav-equipment">设备中心</a></li>
                     <li><a href="#products" data-lang="nav-products">产品展示</a></li>
                     <li><a href="#process" data-lang="nav-process">工艺流程</a></li>
-                    <li><a href="#message" data-lang="nav-message">联系我们</a></li>
+                    <li><a href="#message-web" data-lang="nav-message">联系我们</a></li>
                 </ul>
             </div>
             <div>
@@ -858,7 +858,7 @@
             <span class="drawer-nav-arrow">›</span>
         </a>
         <div class="drawer-divider"></div>
-        <a class="drawer-nav-item" href="#message" onclick="closeDrawer()">
+        <a class="drawer-nav-item" href="#message-form" onclick="closeDrawer()">
             <span class="drawer-nav-icon">💬</span>
             <span data-lang="nav-message">在线留言</span>
             <span class="drawer-nav-arrow">›</span>
@@ -875,7 +875,7 @@
             <button class="drawer-lang-btn" onclick="switchLang('en')" id="dlang-en">🇬🇧 EN</button>
             <button class="drawer-lang-btn" onclick="switchLang('ja')" id="dlang-ja">🇯🇵 日本語</button>
         </div>
-        <a href="admin.html" class="drawer-admin-entry">🔧 <span data-lang="admin-entry">管理后台</span></a>
+        <a href="admin.html" class="drawer-admin-entry" target="_blank" rel="noopener noreferrer">🔧 <span data-lang="admin-entry">管理后台</span></a>
         <a href="tel:02800000000" class="drawer-call-btn">
             📞 <span data-lang="call-now">立即拨打咨询</span>
         </a>
@@ -937,7 +937,7 @@
             <a href="#products" class="btn btn-secondary" onclick="smoothTo('products')">
                 🔧 <span data-lang="hero-btn1">查看产品</span>
             </a>
-            <a href="#message" class="btn btn-outline" onclick="smoothTo('message')">
+            <a href="#message-form" class="btn btn-outline" onclick="smoothTo('message-form')">
                 📩 <span data-lang="hero-btn2">联系我们</span>
             </a>
         </div>
@@ -983,7 +983,7 @@
                 <div class="quick-entry-icon qei-2">🔧</div>
                 <span class="quick-entry-label" data-lang="qe2">产品展示</span>
             </a>
-            <a class="quick-entry-item" href="#message" onclick="smoothTo('message')">
+            <a class="quick-entry-item" href="#message-form" onclick="smoothTo('message-form')">
                 <div class="quick-entry-icon qei-3">💬</div>
                 <span class="quick-entry-label" data-lang="qe3">在线留言</span>
             </a>
@@ -1504,7 +1504,7 @@
         </div>
 
         <!-- 留言表单 -->
-        <div class="msg-form">
+        <div class="msg-form" id="message-form">
             <div class="msg-form-title">
                 ✍️ <span data-lang="form-title">在线留言</span>
             </div>
@@ -1577,7 +1577,7 @@
             <a href="#equipment" class="footer-link" onclick="smoothTo('equipment')" data-lang="nav-equipment">设备中心</a>
             <a href="#products" class="footer-link" onclick="smoothTo('products')" data-lang="nav-products">产品展示</a>
             <a href="#process" class="footer-link" onclick="smoothTo('process')" data-lang="nav-process">工艺流程</a>
-            <a href="#message" class="footer-link" onclick="smoothTo('message')" data-lang="nav-message">联系我们</a>
+            <a href="#message-form" class="footer-link" onclick="smoothTo('message-form')" data-lang="nav-message">在线留言</a>
         </div>
         <div class="footer-divider"></div>
         <div class="footer-bottom">
@@ -1598,7 +1598,7 @@
         <div class="tab-icon">⚙️</div>
         <div class="tab-label" data-lang="tab2">设备</div>
     </a>
-    <a class="tab-item tab-center" href="#message" onclick="tabClick(this,'message',event)">
+    <a class="tab-item tab-center" href="#message-form" onclick="tabClick(this,'message-form',event)">
         <div class="tab-center-inner">💬</div>
         <div class="tab-label" data-lang="tab3">留言</div>
     </a>

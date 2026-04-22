@@ -629,6 +629,10 @@ function switchLang(lang) {
     const loaderText = document.getElementById('loaderText');
     const loadingTexts = { zh: '复兴机械厂 正在加载...', en: 'Fuxing Machinery Loading...', ja: '復興機械工場 読み込み中...' };
     if (loaderText) loaderText.textContent = loadingTexts[lang];
+    
+    // 重新渲染设备和产品卡片以应用新语言
+    renderEquipmentSection();
+    renderProductsSection();
 }
 
 // ===== 导航菜单 =====
@@ -639,7 +643,7 @@ function toggleMenu() {
 
 // ===== 导航高亮 =====
 function updateNavActive() {
-    const sections = ['home', 'about', 'equipment', 'products', 'process', 'message'];
+    const sections = ['home', 'about', 'equipment', 'products', 'process', 'message-web'];
     const scrollPos = window.scrollY + 100;
     let current = 'home';
 
@@ -788,20 +792,43 @@ const productImageMapping = {
     p5: 'prod-5', p6: 'prod-6', p7: 'prod-7', p8: 'prod-8'
 };
 
-window.openEquipModal = function(id) {
-    const data = equipModalData[id];
+window.openEquipModal = async function(id) {
+    // 先尝试从静态数据加载
+    let data = equipModalData[id];
+    
+    // 如果静态数据不存在，尝试从 Supabase 动态加载
+    if (!data) {
+        try {
+            const items = await fetchDisplayItems('equipment');
+            const item = items.find(i => i.image_key === id);
+            if (item) {
+                data = {
+                    icon: '⚙️',
+                    title: { zh: item.title_zh, en: item.title_en || item.title_zh, ja: item.title_ja || item.title_zh },
+                    desc: { zh: item.description_zh, en: item.description_en || item.description_zh, ja: item.description_ja || item.description_zh },
+                    specs: item.specs || [],
+                    imageUrl: item.image_url || null
+                };
+            }
+        } catch (error) {
+            console.error('加载设备详情失败:', error);
+        }
+    }
+    
     if (!data) return;
+    
     const lang = currentLang;
     let specsHtml = '';
     data.specs.forEach(spec => {
         specsHtml += `<div class="modal-spec-row">
-            <strong>${spec.label[lang] || spec.label.zh}</strong>
+            <strong>${spec.label[lang] || spec.label.zh || spec.label}</strong>
             <span>${spec.value}</span>
         </div>`;
     });
+    
     // 尝试加载云端图片
     const cloudImgId = equipImageMapping[id];
-    const cloudImgUrl = cloudImgId ? getCloudImageUrl(cloudImgId) : null;
+    const cloudImgUrl = cloudImgId ? getCloudImageUrl(cloudImgId) : (data.imageUrl || null);
     let imgHtml = '';
     if (cloudImgUrl) {
         imgHtml = `<div class="modal-image" style="width:100%;height:180px;border-radius:12px;overflow:hidden;margin-bottom:16px">
@@ -816,7 +843,7 @@ window.openEquipModal = function(id) {
         <div class="modal-title">${data.title[lang] || data.title.zh}</div>
         <div class="modal-desc">${data.desc[lang] || data.desc.zh}</div>
         <div class="modal-specs">${specsHtml}</div>
-        <a href="#message" class="btn-primary" style="width:100%;justify-content:center;text-decoration:none" onclick="closeModalBtn()" data-lang="nav-quote">获取报价</a>
+        <a href="#message-web" class="btn-primary" style="width:100%;justify-content:center;text-decoration:none" onclick="closeModalBtn()" data-lang="nav-quote">获取报价</a>
     `;
     document.getElementById('modalOverlay').classList.add('active');
 }
@@ -833,21 +860,43 @@ const productModalData = {
     p8: { icon: '🔑', title: { zh: '精密键槽零件', en: 'Keyway Parts', ja: '精密キー溝部品' }, desc: { zh: '精密键槽加工零件，键槽尺寸精度高，对称度好，适用于各类传动轴、齿轮等需要键连接的精密零件。', en: 'Precision keyway parts with high dimensional accuracy and symmetry for transmission shafts, gears and other keyed components.', ja: '精密キー溝加工部品、高寸法精度・対称性、各種伝動軸・歯車等のキー接続部品に適応。' }, specs: [ { label: { zh: '键槽精度', en: 'Keyway Accuracy', ja: 'キー溝精度' }, value: 'H7/h6' }, { label: { zh: '对称度', en: 'Symmetry', ja: '対称度' }, value: '≤0.02mm' }, { label: { zh: '材质', en: 'Material', ja: '材質' }, value: '合金钢/工具钢' }, { label: { zh: '热处理', en: 'Heat Treatment', ja: '熱処理' }, value: 'HRC55-62' } ] }
 };
 
-window.openProductModal = function(id) {
-    const data = productModalData[id];
+window.openProductModal = async function(id) {
+    // 先尝试从静态数据加载
+    let data = productModalData[id];
+    
+    // 如果静态数据不存在，尝试从 Supabase 动态加载
+    if (!data) {
+        try {
+            const items = await fetchDisplayItems('product');
+            const item = items.find(i => i.image_key === id);
+            if (item) {
+                data = {
+                    icon: '🔧',
+                    title: { zh: item.title_zh, en: item.title_en || item.title_zh, ja: item.title_ja || item.title_zh },
+                    desc: { zh: item.description_zh, en: item.description_en || item.description_zh, ja: item.description_ja || item.description_zh },
+                    specs: item.specs || [],
+                    imageUrl: item.image_url || null
+                };
+            }
+        } catch (error) {
+            console.error('加载产品详情失败:', error);
+        }
+    }
+    
     if (!data) return;
+    
     const lang = currentLang;
     let specsHtml = '';
     data.specs.forEach(spec => {
         specsHtml += `<div class="modal-spec-row">
-            <strong>${spec.label[lang] || spec.label.zh}</strong>
+            <strong>${spec.label[lang] || spec.label.zh || spec.label}</strong>
             <span>${spec.value}</span>
         </div>`;
     });
     const quoteBtnText = { zh: '询价定制', en: 'Request Quote', ja: '見積依頼' };
     // 尝试加载云端图片
     const cloudImgId = productImageMapping[id];
-    const cloudImgUrl = cloudImgId ? getCloudImageUrl(cloudImgId) : null;
+    const cloudImgUrl = cloudImgId ? getCloudImageUrl(cloudImgId) : (data.imageUrl || null);
     let imgHtml = '';
     if (cloudImgUrl) {
         imgHtml = `<div class="modal-image" style="width:100%;height:180px;border-radius:12px;overflow:hidden;margin-bottom:16px">
@@ -862,7 +911,7 @@ window.openProductModal = function(id) {
         <div class="modal-title">${data.title[lang] || data.title.zh}</div>
         <div class="modal-desc">${data.desc[lang] || data.desc.zh}</div>
         <div class="modal-specs">${specsHtml}</div>
-        <a href="#message" class="btn-primary" style="width:100%;justify-content:center;text-decoration:none;margin-top:5px" onclick="closeModalBtn()">🔧 ${quoteBtnText[lang]}</a>
+        <a href="#message-web" class="btn-primary" style="width:100%;justify-content:center;text-decoration:none;margin-top:5px" onclick="closeModalBtn()">🔧 ${quoteBtnText[lang]}</a>
     `;
     document.getElementById('modalOverlay').classList.add('active');
 }
@@ -1046,15 +1095,12 @@ async function submitMessage(e) {
     (async function() {
         try {
             if (isCloudConfigured()) {
-                var cloudMessages = await fetchMessagesFromCloud();
-                var messages = cloudMessages || [];
-                messages.unshift(newMessage);
-                var success = await saveMessagesToCloud(messages);
+                // Supabase 模式：直接保存单条留言
+                var success = await saveSingleMessageToCloud(newMessage);
                 if (success) {
-                    console.log('留言已成功保存到云端');
+                    console.log('留言已成功保存到 Supabase');
                 } else {
-                    // saveMessagesToCloud 已将数据加入重试队列，不会丢失
-                    console.warn('留言云端保存失败，已加入重试队列');
+                    console.warn('留言 Supabase 保存失败，已加入重试队列');
                 }
             } else {
                 // 云端未配置，仅保存到本地
@@ -1157,5 +1203,147 @@ window.closeModal      = closeModal;
 window.closeModalBtn   = closeModalBtn;
 window.submitMessage   = submitMessage;
 window.scrollToTop     = scrollToTop;
+
+// ===== 设备和产品动态渲染 =====
+
+/**
+ * 动态渲染设备中心
+ */
+async function renderEquipmentSection() {
+    try {
+        const items = await fetchDisplayItems('equipment');
+        const grid = document.getElementById('equipmentGrid');
+        
+        if (!grid || items.length === 0) {
+            console.log('设备数据为空，保持现有HTML');
+            return;
+        }
+        
+        const emojiMap = {
+            '数控机床': '🤖',
+            '线切割': '⚡',
+            '其他设备': '🔥'
+        };
+        
+        // 中文标签到英文分类的映射
+        const categoryMap = {
+            '数控机床': 'cnc',
+            '线切割': 'wire',
+            '其他设备': 'other'
+        };
+        
+        // 获取当前语言
+        const lang = currentLang || 'zh';
+        
+        grid.innerHTML = items.map(item => {
+            const tag = item.tags && item.tags.length > 0 ? item.tags[0] : '设备';
+            const emoji = emojiMap[tag] || '⚙️';
+            const category = categoryMap[tag] || 'other'; // 使用英文分类
+            
+            // 根据语言选择标题和描述
+            const title = (lang === 'en' && item.title_en) ? item.title_en : 
+                         (lang === 'ja' && item.title_ja) ? item.title_ja : item.title_zh;
+            const desc = (lang === 'en' && item.description_en) ? item.description_en : 
+                        (lang === 'ja' && item.description_ja) ? item.description_ja : (item.description_zh || '');
+            
+            return `
+                <div class="equipment-card" data-category="${category}" onclick="openEquipModal('${item.image_key}')">
+                    <div class="equipment-img" id="fx-img-${item.image_key}"
+                         style="${item.image_url ? `background-image:url('${item.image_url}');background-size:cover;background-position:center` : ''}">
+                        <span class="equipment-emoji">${emoji}</span>
+                        <span class="equipment-tag">${tag}</span>
+                    </div>
+                    <div class="equipment-body">
+                        <div class="equipment-name">${title}</div>
+                        <div class="equipment-desc">${desc}</div>
+                        <div class="equipment-specs">
+                            ${(item.specs || []).map(spec => `<span class="spec-tag">${spec.value}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        console.log('设备中心已动态渲染，共', items.length, '个设备');
+    } catch (error) {
+        console.error('渲染设备中心失败:', error);
+    }
+}
+
+/**
+ * 动态渲染产品展示
+ */
+async function renderProductsSection() {
+    try {
+        const items = await fetchDisplayItems('product');
+        const grid = document.querySelector('#web-version .products-grid');
+        
+        if (!grid || items.length === 0) {
+            console.log('产品数据为空，保持现有HTML');
+            return;
+        }
+        
+        const emojis = ['⚙️', '🔩', '🔧', '🏗️', '💎', '🔮', '🛠️', '🔑'];
+        
+        // 获取当前语言
+        const lang = currentLang || 'zh';
+        
+        // “查看详情”的多语言翻译
+        const viewDetailText = {
+            'zh': '查看详情',
+            'en': 'View Details',
+            'ja': '詳細を見る'
+        };
+        
+        grid.innerHTML = items.map((item, index) => {
+            const emoji = emojis[index % emojis.length];
+            const material = (item.specs || []).map(s => s.value).join(' / ') || '';
+            
+            // 根据语言选择标题
+            const title = (lang === 'en' && item.title_en) ? item.title_en : 
+                         (lang === 'ja' && item.title_ja) ? item.title_ja : item.title_zh;
+            
+            return `
+                <div class="product-card" onclick="openProductModal('${item.image_key}')">
+                    <div class="product-img product-img-${index + 1}" id="fx-img-${item.image_key}"
+                         style="${item.image_url ? `background-image:url('${item.image_url}');background-size:cover;background-position:center` : ''}">
+                        <div class="product-overlay">
+                            <span class="product-view-btn">${viewDetailText[lang] || viewDetailText['zh']}</span>
+                        </div>
+                        <span class="product-emoji">${emoji}</span>
+                    </div>
+                    <div class="product-body">
+                        <div class="product-name">${title}</div>
+                        <div class="product-material">${material}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        console.log('产品展示已动态渲染，共', items.length, '个产品');
+    } catch (error) {
+        console.error('渲染产品展示失败:', error);
+    }
+}
+
+/**
+ * 初始化动态渲染
+ */
+async function initDynamicContent() {
+    // 延迟执行，确保 DOM 完全加载
+    setTimeout(async () => {
+        await Promise.all([
+            renderEquipmentSection(),
+            renderProductsSection()
+        ]);
+    }, 500);
+}
+
+// 页面加载完成后初始化动态内容
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDynamicContent);
+} else {
+    initDynamicContent();
+}
 
 /* ---------- Web 版脚本 结束 ---------- */

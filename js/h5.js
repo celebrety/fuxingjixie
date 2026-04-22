@@ -318,6 +318,10 @@ function switchLang(lang) {
     if (dc) dc.textContent = data['company-name'];
     closeDrawer();
     showToast(lang === 'zh' ? '已切换为中文' : lang === 'en' ? 'Switched to English' : '日本語に切替えました');
+    
+    // 重新渲染设备和产品（使用当前语言）
+    renderH5EquipmentSection();
+    renderH5ProductsSection();
 }
 
 // ============================================================
@@ -599,14 +603,35 @@ const h5ProductImageMapping = {
 // ============================================================
 //  打开设备模态框
 // ============================================================
-window.openEquipModal = function(id) {
-    const d = equipData[id];
+window.openEquipModal = async function(id) {
+    // 先尝试从静态数据加载
+    let d = equipData[id];
+    
+    // 如果静态数据不存在，尝试从 Supabase 动态加载
+    if (!d) {
+        try {
+            const items = await fetchDisplayItems('equipment');
+            const item = items.find(i => i.image_key === id);
+            if (item) {
+                d = {
+                    icon: '⚙️',
+                    title: { zh: item.title_zh, en: item.title_en || item.title_zh, ja: item.title_ja || item.title_zh },
+                    desc: { zh: item.description_zh, en: item.description_en || item.description_zh, ja: item.description_ja || item.description_zh },
+                    specs: item.specs || []
+                };
+            }
+        } catch (error) {
+            console.error('加载设备详情失败:', error);
+        }
+    }
+    
     if (!d) return;
+    
     const lang = currentLang;
     const ld = langs[lang];
     let specsHtml = d.specs.map(s => `
         <div class="modal-spec-row">
-            <span class="modal-spec-label">${s.label[lang]||s.label.zh}</span>
+            <span class="modal-spec-label">${s.label[lang]||s.label.zh||s.label}</span>
             <span class="modal-spec-val">${s.value}</span>
         </div>`).join('');
     // 尝试加载云端图片
@@ -626,7 +651,7 @@ window.openEquipModal = function(id) {
         ${imgHtml}
         <div class="modal-desc">${d.desc[lang]||d.desc.zh}</div>
         <div class="modal-specs">${specsHtml}</div>
-        <a href="#message" class="btn btn-primary btn-block" onclick="window.closeModal();window.smoothTo('message')">
+        <a href="#message-form" class="btn btn-primary btn-block" onclick="window.closeModal();window.smoothTo('message-form')">
             📩 ${ld['modal-quote']||'获取报价'}
         </a>`;
     window.openModal();
@@ -635,14 +660,35 @@ window.openEquipModal = function(id) {
 // ============================================================
 //  打开产品模态框
 // ============================================================
-window.openProductModal = function(id) {
-    const d = productData[id];
+window.openProductModal = async function(id) {
+    // 先尝试从静态数据加载
+    let d = productData[id];
+    
+    // 如果静态数据不存在，尝试从 Supabase 动态加载
+    if (!d) {
+        try {
+            const items = await fetchDisplayItems('product');
+            const item = items.find(i => i.image_key === id);
+            if (item) {
+                d = {
+                    icon: '🔧',
+                    title: { zh: item.title_zh, en: item.title_en || item.title_zh, ja: item.title_ja || item.title_zh },
+                    desc: { zh: item.description_zh, en: item.description_en || item.description_zh, ja: item.description_ja || item.description_zh },
+                    specs: item.specs || []
+                };
+            }
+        } catch (error) {
+            console.error('加载产品详情失败:', error);
+        }
+    }
+    
     if (!d) return;
+    
     const lang = currentLang;
     const ld = langs[lang];
     let specsHtml = d.specs.map(s => `
         <div class="modal-spec-row">
-            <span class="modal-spec-label">${s.label[lang]||s.label.zh}</span>
+            <span class="modal-spec-label">${s.label[lang]||s.label.zh||s.label}</span>
             <span class="modal-spec-val">${s.value}</span>
         </div>`).join('');
     // 尝试加载云端图片
@@ -662,7 +708,7 @@ window.openProductModal = function(id) {
         ${imgHtml}
         <div class="modal-desc">${d.desc[lang]||d.desc.zh}</div>
         <div class="modal-specs">${specsHtml}</div>
-        <a href="#message" class="btn btn-primary btn-block" onclick="window.closeModal();window.smoothTo('message')">
+        <a href="#message-form" class="btn btn-primary btn-block" onclick="window.closeModal();window.smoothTo('message-form')">
             🔧 ${ld['modal-quote']||'询价定制'}
         </a>`;
     window.openModal();
@@ -856,20 +902,16 @@ async function submitMsg(e) {
         source: 'h5'
     };
     
-    // 后台异步保存到云端（不阻塞用户体验）
-    // saveMessagesToCloud 内置5次重试+指数退避，失败后自动加入重试队列持续同步
+    // 后台异步保存到云端（修改后）
     (async function() {
         try {
             if (isCloudConfigured()) {
-                var cloudMessages = await fetchMessagesFromCloud();
-                var messages = cloudMessages || [];
-                messages.unshift(newMessage);
-                var success = await saveMessagesToCloud(messages);
+                // Supabase 模式：直接保存单条留言
+                var success = await saveSingleMessageToCloud(newMessage);
                 if (success) {
-                    console.log('H5留言已成功保存到云端');
+                    console.log('H5留言已成功保存到 Supabase');
                 } else {
-                    // saveMessagesToCloud 已将数据加入重试队列，不会丢失
-                    console.warn('H5留言云端保存失败，已加入重试队列');
+                    console.warn('H5留言 Supabase 保存失败，已加入重试队列');
                 }
             } else {
                 // 云端未配置，仅保存到本地
@@ -944,5 +986,136 @@ window.openProductModal = openProductModal;
 // openModal, closeModal, handleModalClick 已经在前面定义为 window 属性
 window.showToast        = showToast;
 window.submitMsg        = submitMsg;
+
+// ===== 设备和产品动态渲染 (H5版) =====
+
+/**
+ * 动态渲染设备中心 (H5)
+ */
+async function renderH5EquipmentSection() {
+    try {
+        const items = await fetchDisplayItems('equipment');
+        const scroll = document.getElementById('equipScroll');
+        
+        if (!scroll || items.length === 0) {
+            console.log('H5设备数据为空，保持现有HTML');
+            return;
+        }
+        
+        const emojiMap = {
+            '数控机床': '🤖',
+            '线切割': '⚡',
+            '其他设备': '🔥'
+        };
+        
+        // 中文tag到英文类别的映射（用于过滤）
+        const tagToCategoryMap = {
+            '数控机床': 'cnc',
+            '线切割': 'wire',
+            '其他设备': 'other'
+        };
+        
+        scroll.innerHTML = items.map((item, index) => {
+            const tag = item.tags && item.tags.length > 0 ? item.tags[0] : '设备';
+            const emoji = emojiMap[tag] || '⚙️';
+            const bgClass = `equip-card-img-bg${(index % 6) + 1}`;
+            
+            // 将中文tag映射为英文类别（用于过滤）
+            const category = tagToCategoryMap[tag] || 'other';
+            
+            // 根据当前语言选择标题和描述
+            const title = currentLang === 'zh' ? item.title_zh : (currentLang === 'en' ? (item.title_en || item.title_zh) : (item.title_ja || item.title_zh));
+            const desc = currentLang === 'zh' ? (item.description_zh || '') : (currentLang === 'en' ? (item.description_en || item.description_zh || '') : (item.description_ja || item.description_zh || ''));
+            
+            return `
+                <div class="equip-card" data-cat="${category}" onclick="openEquipModal('${item.image_key}')">
+                    <div class="equip-card-img ${bgClass}"
+                         style="${item.image_url ? `background-image:url('${item.image_url}');background-size:cover;background-position:center` : ''}">
+                        <span>${emoji}</span>
+                        <span class="equip-card-tag">${tag}</span>
+                    </div>
+                    <div class="equip-card-body">
+                        <div class="equip-card-name">${title}</div>
+                        <div class="equip-card-desc">${desc}</div>
+                        <div class="equip-card-specs">
+                            ${(item.specs || []).slice(0, 2).map(spec => `<span class="spec-chip">${spec.value}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        console.log('H5设备中心已动态渲染，共', items.length, '个设备');
+    } catch (error) {
+        console.error('渲染H5设备中心失败:', error);
+    }
+}
+
+/**
+ * 动态渲染产品展示 (H5)
+ */
+async function renderH5ProductsSection() {
+    try {
+        const items = await fetchDisplayItems('product');
+        const grid = document.querySelector('#h5-version .products-grid');
+        
+        if (!grid || items.length === 0) {
+            console.log('H5产品数据为空，保持现有HTML');
+            return;
+        }
+        
+        const emojis = ['⚙️', '🔩', '🔧', '🏗️', '💎', '🔮', '🛠️', '🔑'];
+        
+        grid.innerHTML = items.map((item, index) => {
+            const emoji = emojis[index % emojis.length];
+            const material = (item.specs || []).map(s => s.value).join(' / ') || '';
+            const imgClass = `pc-img-${(index % 8) + 1}`;
+            
+            // 根据当前语言选择标题
+            const title = currentLang === 'zh' ? item.title_zh : (currentLang === 'en' ? (item.title_en || item.title_zh) : (item.title_ja || item.title_zh));
+            
+            return `
+                <div class="product-card" onclick="openProductModal('${item.image_key}')">
+                    <div class="product-card-img ${imgClass}"
+                         style="${item.image_url ? `background-image:url('${item.image_url}');background-size:cover;background-position:center` : ''}">
+                        <span>${emoji}</span>
+                        <span class="product-card-label">${(item.specs || [])[0]?.value || ''}</span>
+                    </div>
+                    <div class="product-card-body">
+                        <div class="product-card-name">${title}</div>
+                        <div class="product-card-mat">${material}</div>
+                        <div class="product-card-action">
+                            <span class="product-card-btn">详情 ›</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        console.log('H5产品展示已动态渲染，共', items.length, '个产品');
+    } catch (error) {
+        console.error('渲染H5产品展示失败:', error);
+    }
+}
+
+/**
+ * 初始化H5动态渲染
+ */
+async function initH5DynamicContent() {
+    // 延迟执行，确保 DOM 完全加载
+    setTimeout(async () => {
+        await Promise.all([
+            renderH5EquipmentSection(),
+            renderH5ProductsSection()
+        ]);
+    }, 600);
+}
+
+// H5页面加载完成后初始化动态内容
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initH5DynamicContent);
+} else {
+    initH5DynamicContent();
+}
 
 /* ---------- H5 版脚本 结束 ---------- */

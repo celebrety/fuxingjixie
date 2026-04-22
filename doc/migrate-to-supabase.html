@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据迁移工具 - JSONBin.io 到 Supabase</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .step {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        .step h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        .step p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        .step code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #d63384;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 10px 10px 0;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .log {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .log .error { color: #ff4444; }
+        .log .success { color: #00ff00; }
+        .log .info { color: #00bfff; }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .warning strong { color: #856404; }
+        .progress {
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-bar {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 30px;
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 数据迁移工具</h1>
+        <p class="subtitle">从 JSONBin.io / localStorage 迁移到 Supabase</p>
+
+        <div class="warning">
+            <strong>⚠️ 重要提示：</strong><br>
+            1. 迁移前请确保已在 Supabase 中执行了数据库表结构脚本（supabase-schema.sql）<br>
+            2. 本工具会从浏览器 localStorage 读取数据并导入到 Supabase<br>
+            3. 如果您的数据在 JSONBin.io 上，请先在浏览器中访问一次 admin.html 让数据同步到 localStorage
+        </div>
+
+        <div class="step">
+            <h3>📋 迁移步骤</h3>
+            <p>1. 打开浏览器开发者工具（F12）</p>
+            <p>2. 访问复兴机械厂官网的 admin.html 页面</p>
+            <p>3. 等待页面加载完成，确保数据已同步到 localStorage</p>
+            <p>4. 点击下方的「开始迁移」按钮</p>
+        </div>
+
+        <div>
+            <button id="migrateBtn" onclick="startMigration()">🚀 开始迁移</button>
+            <button onclick="clearLog()">🗑️ 清空日志</button>
+        </div>
+
+        <div class="progress" id="progressContainer" style="display:none;">
+            <div class="progress-bar" id="progressBar">0%</div>
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://sjpkjfpaocswveydbxvc.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_RbIuhqGsWbNzfNE-cXiZNA_7BR1_1fM';
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            logDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function updateProgress(percent) {
+            const progressBar = document.getElementById('progressBar');
+            const progressContainer = document.getElementById('progressContainer');
+            progressContainer.style.display = 'block';
+            progressBar.style.width = percent + '%';
+            progressBar.textContent = percent + '%';
+        }
+
+        async function startMigration() {
+            const migrateBtn = document.getElementById('migrateBtn');
+            migrateBtn.disabled = true;
+
+            log('========================================', 'info');
+            log('开始数据迁移...', 'info');
+            log('========================================', 'info');
+
+            try {
+                // 步骤 1: 从 localStorage 读取数据
+                updateProgress(10);
+                log('步骤 1: 从 localStorage 读取数据...', 'info');
+                
+                const messagesStr = localStorage.getItem('fx_messages');
+                const imagesStr = localStorage.getItem('fx_images');
+
+                const messages = messagesStr ? JSON.parse(messagesStr) : [];
+                const images = imagesStr ? JSON.parse(imagesStr) : {};
+
+                log(`读取到 ${messages.length} 条留言`, 'success');
+                log(`读取到 ${Object.keys(images).length} 个图片配置`, 'success');
+
+                if (messages.length === 0 && Object.keys(images).length === 0) {
+                    log('⚠️ 警告: localStorage 中没有数据！', 'error');
+                    log('请先访问 admin.html 页面，让数据从 JSONBin.io 同步到本地', 'error');
+                    migrateBtn.disabled = false;
+                    return;
+                }
+
+                // 步骤 2: 迁移留言数据
+                updateProgress(30);
+                log('\n步骤 2: 迁移留言数据到 Supabase...', 'info');
+                
+                if (messages.length > 0) {
+                    // 先清空现有数据
+                    log('清空现有留言数据...', 'info');
+                    const deleteMsgResponse = await fetch(`${SUPABASE_URL}/rest/v1/messages`, {
+                        method: 'DELETE',
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`
+                        }
+                    });
+
+                    if (!deleteMsgResponse.ok) {
+                        throw new Error(`删除留言失败: ${deleteMsgResponse.status}`);
+                    }
+                    log('✓ 已清空现有留言数据', 'success');
+
+                    // 批量插入新数据
+                    log(`开始导入 ${messages.length} 条留言...`, 'info');
+                    const insertMsgResponse = await fetch(`${SUPABASE_URL}/rest/v1/messages`, {
+                        method: 'POST',
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=representation'
+                        },
+                        body: JSON.stringify(messages)
+                    });
+
+                    if (!insertMsgResponse.ok) {
+                        const errorText = await insertMsgResponse.text();
+                        throw new Error(`导入留言失败: ${insertMsgResponse.status} - ${errorText}`);
+                    }
+
+                    log(`✓ 成功导入 ${messages.length} 条留言`, 'success');
+                } else {
+                    log('没有留言数据需要迁移', 'info');
+                }
+
+                // 步骤 3: 迁移图片配置
+                updateProgress(60);
+                log('\n步骤 3: 迁移图片配置到 Supabase...', 'info');
+
+                if (Object.keys(images).length > 0) {
+                    // 先清空现有数据
+                    log('清空现有图片配置...', 'info');
+                    const deleteImgResponse = await fetch(`${SUPABASE_URL}/rest/v1/images_config`, {
+                        method: 'DELETE',
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`
+                        }
+                    });
+
+                    if (!deleteImgResponse.ok) {
+                        throw new Error(`删除图片配置失败: ${deleteImgResponse.status}`);
+                    }
+                    log('✓ 已清空现有图片配置', 'success');
+
+                    // 转换为 Supabase 格式
+                    const imageRecords = Object.keys(images).map(key => ({
+                        key: key,
+                        url: images[key]
+                    }));
+
+                    // 批量插入新数据
+                    log(`开始导入 ${imageRecords.length} 个图片配置...`, 'info');
+                    const insertImgResponse = await fetch(`${SUPABASE_URL}/rest/v1/images_config`, {
+                        method: 'POST',
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=representation'
+                        },
+                        body: JSON.stringify(imageRecords)
+                    });
+
+                    if (!insertImgResponse.ok) {
+                        const errorText = await insertImgResponse.text();
+                        throw new Error(`导入图片配置失败: ${insertImgResponse.status} - ${errorText}`);
+                    }
+
+                    log(`✓ 成功导入 ${imageRecords.length} 个图片配置`, 'success');
+                } else {
+                    log('没有图片配置需要迁移', 'info');
+                }
+
+                // 步骤 4: 验证数据
+                updateProgress(80);
+                log('\n步骤 4: 验证数据...', 'info');
+
+                // 验证留言数据
+                const verifyMsgResponse = await fetch(`${SUPABASE_URL}/rest/v1/messages?select=id`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                });
+
+                if (verifyMsgResponse.ok) {
+                    const verifyMsgData = await verifyMsgResponse.json();
+                    log(`✓ Supabase 中有 ${verifyMsgData.length} 条留言`, 'success');
+                }
+
+                // 验证图片配置
+                const verifyImgResponse = await fetch(`${SUPABASE_URL}/rest/v1/images_config?select=key`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                });
+
+                if (verifyImgResponse.ok) {
+                    const verifyImgData = await verifyImgResponse.json();
+                    log(`✓ Supabase 中有 ${verifyImgData.length} 个图片配置`, 'success');
+                }
+
+                // 完成
+                updateProgress(100);
+                log('\n========================================', 'success');
+                log('🎉 数据迁移完成！', 'success');
+                log('========================================', 'success');
+                log('\n后续步骤：', 'info');
+                log('1. 在 Supabase Dashboard 中验证数据', 'info');
+                log('2. 访问 index.html 测试留言提交功能', 'info');
+                log('3. 访问 admin.html 测试管理功能', 'info');
+
+            } catch (error) {
+                log(`\n❌ 迁移失败: ${error.message}`, 'error');
+                log('请检查网络连接和 Supabase 配置', 'error');
+                console.error(error);
+            } finally {
+                migrateBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
