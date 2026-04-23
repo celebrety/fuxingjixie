@@ -1250,7 +1250,7 @@ async function renderEquipmentSection() {
                 <div class="equipment-card" data-category="${category}" onclick="openEquipModal('${item.image_key}')">
                     <div class="equipment-img" id="fx-img-${item.image_key}"
                          style="${item.image_url ? `background-image:url('${item.image_url}');background-size:cover;background-position:center` : ''}">
-                        <span class="equipment-emoji">${emoji}</span>
+                        <span class="equipment-emoji" style="${item.image_url ? 'display:none' : ''}">${emoji}</span>
                         <span class="equipment-tag">${tag}</span>
                     </div>
                     <div class="equipment-body">
@@ -1310,7 +1310,7 @@ async function renderProductsSection() {
                         <div class="product-overlay">
                             <span class="product-view-btn">${viewDetailText[lang] || viewDetailText['zh']}</span>
                         </div>
-                        <span class="product-emoji">${emoji}</span>
+                        <span class="product-emoji" style="${item.image_url ? 'display:none' : ''}">${emoji}</span>
                     </div>
                     <div class="product-body">
                         <div class="product-name">${title}</div>

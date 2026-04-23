@@ -1031,7 +1031,7 @@ async function renderH5EquipmentSection() {
                 <div class="equip-card" data-cat="${category}" onclick="openEquipModal('${item.image_key}')">
                     <div class="equip-card-img ${bgClass}"
                          style="${item.image_url ? `background-image:url('${item.image_url}');background-size:cover;background-position:center` : ''}">
-                        <span>${emoji}</span>
+                        <span style="${item.image_url ? 'display:none' : ''}">${emoji}</span>
                         <span class="equip-card-tag">${tag}</span>
                     </div>
                     <div class="equip-card-body">
@@ -1078,7 +1078,7 @@ async function renderH5ProductsSection() {
                 <div class="product-card" onclick="openProductModal('${item.image_key}')">
                     <div class="product-card-img ${imgClass}"
                          style="${item.image_url ? `background-image:url('${item.image_url}');background-size:cover;background-position:center` : ''}">
-                        <span>${emoji}</span>
+                        <span style="${item.image_url ? 'display:none' : ''}">${emoji}</span>
                         <span class="product-card-label">${(item.specs || [])[0]?.value || ''}</span>
                     </div>
                     <div class="product-card-body">
